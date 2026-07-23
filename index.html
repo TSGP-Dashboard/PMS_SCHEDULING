@@ -34,6 +34,7 @@
       --status-red-bg: #fee2e2;
       --status-red-text: #991b1b;
       --log-header-bg: #7cb342;
+      --calendar-header-bg: #475569;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
@@ -242,6 +243,35 @@
     }
     .log-cell-input:focus { border-color: var(--primary-blue); background-color: #f0f9ff; }
 
+    /* Calendar Grid Specifics */
+    .cal-header {
+      background-color: var(--calendar-header-bg) !important;
+      color: #ffffff !important;
+      text-align: center;
+      font-weight: 600;
+      font-size: 10px;
+      padding: 4px 6px;
+      white-space: normal;
+    }
+    .cal-cell {
+      text-align: center;
+      padding: 4px 2px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .cal-badge {
+      display: inline-block;
+      width: 100%;
+      padding: 3px 2px;
+      border-radius: 3px;
+      color: #fff;
+      font-weight: 700;
+      font-size: 10px;
+    }
+    .cal-badge-red { background-color: #dc2626; }
+    .cal-badge-amber { background-color: #d97706; }
+    .cal-badge-green { background-color: #16a34a; }
+
     /* Badges */
     .badge {
       display: inline-block;
@@ -308,6 +338,12 @@
             <span>Daily SMR / KM Logs</span>
           </a>
         </li>
+        <li>
+          <a class="nav-item" id="nav-calendar" onclick="switchView('calendar')">
+            <i class="fa-solid fa-calendar-days"></i>
+            <span>PMS Calendar</span>
+          </a>
+        </li>
       </ul>
     </div>
 
@@ -345,27 +381,22 @@
             <i class="fa-solid fa-calendar-days" style="color: var(--primary-blue);"></i> PMS Scheduling Table
           </div>
           <div class="filter-group">
-            <!-- Update Reading Sync Button -->
             <button class="btn btn-primary" onclick="fetchFleetFromDB()" id="btnSync">
               <i class="fa-solid fa-rotate"></i> Update Reading
             </button>
 
-            <!-- 1. Equipment Group Filter -->
             <select id="groupFilter" class="form-control" onchange="filterData()">
               <option value="ALL">All Equipment Groups</option>
             </select>
 
-            <!-- 2. Search Input -->
             <input type="text" id="searchInput" class="form-control" placeholder="Search Unit No, Model..." onkeyup="filterData()" style="width: 150px;">
             
-            <!-- 3. Meter Type Filter -->
             <select id="typeFilter" class="form-control" onchange="filterData()">
               <option value="ALL">All Meters (SMR & KM)</option>
               <option value="SMR">SMR (Hours)</option>
               <option value="KM">KM (Odometer)</option>
             </select>
 
-            <!-- 4. PMS Status Filter -->
             <select id="statusFilter" class="form-control" onchange="filterData()">
               <option value="ALL">All PMS Statuses</option>
               <option value="OVERDUE">🔴 OVERDUE</option>
@@ -406,7 +437,6 @@
           </table>
         </div>
 
-        <!-- PAGINATION CONTROLS (Max 20 Items per Page) -->
         <div class="panel-footer">
           <div class="pagination-info" id="paginationInfo">Showing 0-0 of 0 equipment</div>
           <div class="pagination-controls">
@@ -455,6 +485,45 @@
               <tr>
                 <td colspan="15" style="text-align: center; padding: 16px; color: var(--text-muted);">
                   Loading matrix logs...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- MODULE 3: PMS CALENDAR VIEW -->
+      <div class="panel" id="calendarModuleView" style="display: none;">
+        <div class="panel-header">
+          <div class="panel-title">
+            <i class="fa-solid fa-calendar-week" style="color: var(--calendar-header-bg);"></i> PMS Weekly Schedule Matrix
+          </div>
+          <div class="filter-group">
+            <select id="calGroupFilter" class="form-control" onchange="renderCalendarMatrix()">
+              <option value="ALL">All Equipment Groups</option>
+            </select>
+
+            <button class="btn btn-outline btn-sm" onclick="shiftCalendarWeeks(-4)">
+              <i class="fa-solid fa-chevron-left"></i> Prev 4 Weeks
+            </button>
+
+            <button class="btn btn-outline btn-sm" onclick="shiftCalendarWeeks(4)">
+              Next 4 Weeks <i class="fa-solid fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr id="calTableHeaderRow">
+                <th style="min-width: 120px; background-color: #e2e8f0; text-align: left;">EQUIPMENT ID</th>
+              </tr>
+            </thead>
+            <tbody id="calTableBody">
+              <tr>
+                <td colspan="15" style="text-align: center; padding: 16px; color: var(--text-muted);">
+                  Generating calendar schedule...
                 </td>
               </tr>
             </tbody>
@@ -512,25 +581,38 @@
     function switchView(view) {
       const pmsView = document.getElementById("pmsModuleView");
       const logsView = document.getElementById("logsModuleView");
+      const calView = document.getElementById("calendarModuleView");
+
       const navPms = document.getElementById("nav-pms");
       const navLogs = document.getElementById("nav-logs");
+      const navCal = document.getElementById("nav-calendar");
+
       const title = document.getElementById("mainHeaderTitle");
 
-      if (!pmsView || !logsView) return;
+      if (!pmsView || !logsView || !calView) return;
+
+      pmsView.style.display = "none";
+      logsView.style.display = "none";
+      calView.style.display = "none";
+
+      if (navPms) navPms.classList.remove("active");
+      if (navLogs) navLogs.classList.remove("active");
+      if (navCal) navCal.classList.remove("active");
 
       if (view === 'pms') {
         pmsView.style.display = "block";
-        logsView.style.display = "none";
         if (navPms) navPms.classList.add("active");
-        if (navLogs) navLogs.classList.remove("active");
         if (title) title.textContent = "PMS Scheduling Overview";
-      } else {
-        pmsView.style.display = "none";
+      } else if (view === 'logs') {
         logsView.style.display = "block";
-        if (navPms) navPms.classList.remove("active");
         if (navLogs) navLogs.classList.add("active");
         if (title) title.textContent = "Daily SMR / KM Monitoring Logs";
         renderLogMatrix();
+      } else if (view === 'calendar') {
+        calView.style.display = "block";
+        if (navCal) navCal.classList.add("active");
+        if (title) title.textContent = "PMS Calendar (Saturday Start)";
+        renderCalendarMatrix();
       }
     }
 
@@ -541,7 +623,7 @@
     if (window.supabase) {
       window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     }
-  supabase = window.supabaseClient;
+    supabase = window.supabaseClient;
 
     let fleetDatabase = [];
     let currentFilteredData = [];
@@ -549,11 +631,35 @@
     let windowStartDate = new Date(); 
     windowStartDate.setDate(windowStartDate.getDate() - 13);
 
+    // Calendar state (Saturday anchor)
+    let calendarStartWeekOffset = 0; // Number of 4-week window shifts
+
     let currentSelectedUnit = null;
 
-    // Pagination State (20 items limit)
+    // Pagination State
     let currentPage = 1;
     const itemsPerPage = 20;
+
+    // Helper: Compute Saturday Start of a given week date
+    function getSaturdayStart(d) {
+      const date = new Date(d);
+      const day = date.getDay();
+      // Saturday = 6. If Sunday(0), offset is -1 day to Saturday. Else subtract (day - 6).
+      const diff = date.getDate() - day + (day === 6 ? 0 : -1 - day);
+      date.setDate(diff);
+      date.setHours(0,0,0,0);
+      return date;
+    }
+
+    // Anchor: Week 24 = June 13, 2026 (Saturday) - June 19, 2026 (Friday)
+    const ANCHOR_WEEK_NUM = 24;
+    const ANCHOR_SATURDAY = new Date(2026, 5, 13); // Month is 0-indexed (5 = June)
+
+    function getWeekNumber(saturdayDate) {
+      const diffTime = saturdayDate.getTime() - ANCHOR_SATURDAY.getTime();
+      const diffWeeks = Math.round(diffTime / (7 * 24 * 60 * 60 * 1000));
+      return ANCHOR_WEEK_NUM + diffWeeks;
+    }
 
     // 2. FETCH DATA FROM SUPABASE
     async function fetchFleetFromDB() {
@@ -667,24 +773,17 @@
 
       const groupSelect = document.getElementById("groupFilter");
       const logsGroupSelect = document.getElementById("logsGroupFilter");
+      const calGroupSelect = document.getElementById("calGroupFilter");
 
       if (groupSelect) groupSelect.innerHTML = `<option value="ALL">All Equipment Groups</option>`;
       if (logsGroupSelect) logsGroupSelect.innerHTML = `<option value="ALL">All Equipment Groups</option>`;
+      if (calGroupSelect) calGroupSelect.innerHTML = `<option value="ALL">All Equipment Groups</option>`;
 
       Array.from(prefixes).sort().forEach(prefix => {
-        if (groupSelect) {
-          const option1 = document.createElement("option");
-          option1.value = prefix;
-          option1.textContent = `${prefix} Series`;
-          groupSelect.appendChild(option1);
-        }
-
-        if (logsGroupSelect) {
-          const option2 = document.createElement("option");
-          option2.value = prefix;
-          option2.textContent = `${prefix} Series`;
-          logsGroupSelect.appendChild(option2);
-        }
+        const optHtml = `<option value="${prefix}">${prefix} Series</option>`;
+        if (groupSelect) groupSelect.insertAdjacentHTML('beforeend', optHtml);
+        if (logsGroupSelect) logsGroupSelect.insertAdjacentHTML('beforeend', optHtml);
+        if (calGroupSelect) calGroupSelect.insertAdjacentHTML('beforeend', optHtml);
       });
     }
 
@@ -692,13 +791,16 @@
       let currentDate = new Date(startDate);
       let addedDays = 0;
       let count = Math.ceil(days);
-      if (count <= 0) return "Immediate";
+      if (count <= 0) return { formatted: "Immediate", rawDate: new Date(startDate) };
 
       while (addedDays < count) {
         currentDate.setDate(currentDate.getDate() + 1);
         if (currentDate.getDay() !== 0) addedDays++;
       }
-      return currentDate.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+      return { 
+        formatted: currentDate.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+        rawDate: new Date(currentDate)
+      };
     }
 
     function computeAsset(asset) {
@@ -715,10 +817,19 @@
       if (daysLeft < 0 || unitsLeft < 0) pmsStatus = "OVERDUE";
       else if (daysLeft <= 9) pmsStatus = "SCHEDULE ME";
 
-      const targetDate = addWorkingDays(new Date(), daysLeft);
+      const targetDateObj = addWorkingDays(new Date(), daysLeft);
       const unitLabel = asset.meter_type === "SMR" ? "hrs" : "km";
 
-      return { ...asset, projectedTarget, unitsLeft, daysLeft, targetDate, pmsStatus, unitLabel };
+      return { 
+        ...asset, 
+        projectedTarget, 
+        unitsLeft, 
+        daysLeft, 
+        targetDate: targetDateObj.formatted, 
+        targetRawDate: targetDateObj.rawDate,
+        pmsStatus, 
+        unitLabel 
+      };
     }
 
     function filterData() {
@@ -940,6 +1051,87 @@
         windowStartDate = new Date(newDateStr);
         renderLogMatrix();
       }
+    }
+
+    /* MODULE 3: PMS CALENDAR MATRIX IMPLEMENTATION */
+    function renderCalendarMatrix() {
+      const headerRow = document.getElementById("calTableHeaderRow");
+      const tbody = document.getElementById("calTableBody");
+      const selectedGroup = document.getElementById("calGroupFilter") ? document.getElementById("calGroupFilter").value : "ALL";
+
+      if (!headerRow || !tbody) return;
+
+      headerRow.innerHTML = `<th style="min-width: 120px; background-color: #e2e8f0; text-align: left;">EQUIPMENT ID</th>`;
+
+      // Base Saturday (Anchor: June 13, 2026) adjusted by offset
+      const baseSat = new Date(ANCHOR_SATURDAY);
+      baseSat.setDate(baseSat.getDate() + (calendarStartWeekOffset * 7));
+
+      const weekColumns = [];
+
+      // Display 12 consecutive weeks
+      for (let i = 0; i < 12; i++) {
+        const satDate = new Date(baseSat);
+        satDate.setDate(satDate.getDate() + (i * 7));
+
+        const friDate = new Date(satDate);
+        friDate.setDate(friDate.getDate() + 6);
+
+        const weekNum = getWeekNumber(satDate);
+
+        const formatShort = (d) => `${d.toLocaleString('default', { month: 'short' })} ${d.getDate()}`;
+        const headerText = `W${weekNum}<br><span style="font-size: 9px; font-weight: normal;">${formatShort(satDate)} - ${formatShort(friDate)}</span>`;
+
+        weekColumns.push({
+          weekNum,
+          start: satDate,
+          end: friDate
+        });
+
+        const th = document.createElement("th");
+        th.className = "cal-header";
+        th.innerHTML = headerText;
+        headerRow.appendChild(th);
+      }
+
+      tbody.innerHTML = "";
+      const displayAssets = fleetDatabase.filter(a => selectedGroup === "ALL" || a.equipment_id.toUpperCase().startsWith(selectedGroup));
+
+      displayAssets.forEach(rawAsset => {
+        const item = computeAsset(rawAsset);
+        const tr = document.createElement("tr");
+
+        let rowHtml = `<td><strong>${item.equipment_id}</strong></td>`;
+
+        weekColumns.forEach(week => {
+          // Check if target date falls in this Saturday - Friday week
+          const isDueThisWeek = item.targetRawDate >= week.start && item.targetRawDate <= week.end;
+          
+          if (isDueThisWeek || (item.pmsStatus === "OVERDUE" && week.weekNum === getWeekNumber(getSaturdayStart(new Date())))) {
+            let badgeClass = "cal-badge-green";
+            if (item.pmsStatus === "OVERDUE") badgeClass = "cal-badge-red";
+            else if (item.pmsStatus === "SCHEDULE ME") badgeClass = "cal-badge-amber";
+
+            rowHtml += `
+              <td class="cal-cell">
+                <span class="cal-badge ${badgeClass}" title="${item.equipment_id}: Target Date ${item.targetDate} (${item.pmsStatus})">
+                  ${item.next_pms_type || 'PMS'}
+                </span>
+              </td>
+            `;
+          } else {
+            rowHtml += `<td class="cal-cell" style="color: #cbd5e1;">-</td>`;
+          }
+        });
+
+        tr.innerHTML = rowHtml;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function shiftCalendarWeeks(weeks) {
+      calendarStartWeekOffset += weeks;
+      renderCalendarMatrix();
     }
 
     function openPmsModal(equipmentId) {

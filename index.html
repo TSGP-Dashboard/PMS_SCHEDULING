@@ -105,7 +105,7 @@
 
     .top-header {
       background-color: #ffffff;
-      padding: 16px 28px;
+      padding: 18px 28px;
       border-bottom: 1px solid var(--border-card);
       display: flex;
       justify-content: space-between;
@@ -175,7 +175,7 @@
     }
     .btn-primary { background-color: var(--primary-blue); color: #fff; }
     .btn-primary:hover { background-color: var(--primary-blue-hover); }
-    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    .btn-sm { padding: 5px 12px; font-size: 12px; }
     .btn-outline { background: #fff; border: 1px solid var(--border-card); color: var(--text-main); }
     .btn-outline:hover { background: #f1f5f9; }
 
@@ -209,18 +209,30 @@
     /* MODAL */
     .modal-overlay {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.3); display: none; justify-content: center; align-items: center; z-index: 1000;
+      background: rgba(15, 23, 42, 0.4); display: none; justify-content: center; align-items: center; z-index: 1000;
     }
     .modal {
-      background: #fff; border-radius: 8px; width: 450px; padding: 24px;
+      background: #fff; border-radius: 8px; width: 480px; padding: 24px;
       box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 1px solid var(--border-card);
     }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-    .modal-header h3 { font-size: 16px; font-weight: 700; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--border-card); padding-bottom: 12px; }
+    .modal-header h3 { font-size: 16px; font-weight: 700; color: var(--text-main); }
     .modal-close { cursor: pointer; color: var(--text-muted); font-size: 18px; }
+    .asset-badge-info {
+      background: var(--light-blue-bg);
+      border: 1px solid var(--light-blue-border);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--primary-blue);
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+    }
     .modal-body .form-group { margin-bottom: 14px; }
     .modal-body label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
-    .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; border-top: 1px solid var(--border-card); padding-top: 16px; }
   </style>
 </head>
 <body>
@@ -238,7 +250,7 @@
         <li>
           <a class="nav-item disabled">
             <i class="fa-solid fa-chart-pie"></i>
-            <span>Compliance Dashboard</span>
+            <span>PMS Compliance Dashboard</span>
           </a>
         </li>
 
@@ -247,6 +259,12 @@
           <a class="nav-item active">
             <i class="fa-solid fa-calendar-check"></i>
             <span>PMS Scheduling</span>
+          </a>
+        </li>
+        <li>
+          <a class="nav-item" onclick="openGeneralLogModal()">
+            <i class="fa-solid fa-gauge-high"></i>
+            <span>Log Meter Reading</span>
           </a>
         </li>
       </ul>
@@ -262,19 +280,16 @@
   <main class="main-content">
     <header class="top-header">
       <h2>PMS Scheduling</h2>
-      <button class="btn btn-primary" onclick="openModal()">
-        <i class="fa-solid fa-plus"></i> Log Meter Reading
-      </button>
     </header>
 
     <div class="content-container">
       
-      <!-- Top Summary Cards -->
+      <!-- Top Summary KPI Cards -->
       <div class="kpi-grid">
         <div class="kpi-card red">
           <div>
             <div class="kpi-title">Overdue</div>
-            <div class="kpi-value" id="kpi-overdue">2</div>
+            <div class="kpi-value" id="kpi-overdue">0</div>
           </div>
           <i class="fa-solid fa-triangle-exclamation fa-2x" style="color: var(--status-red-text);"></i>
         </div>
@@ -282,7 +297,7 @@
         <div class="kpi-card amber">
           <div>
             <div class="kpi-title">Schedule Me (&le; 9 Days)</div>
-            <div class="kpi-value" id="kpi-schedule">6</div>
+            <div class="kpi-value" id="kpi-schedule">0</div>
           </div>
           <i class="fa-solid fa-clock-rotate-left fa-2x" style="color: var(--status-amber-text);"></i>
         </div>
@@ -290,7 +305,7 @@
         <div class="kpi-card green">
           <div>
             <div class="kpi-title">Not Yet (On Track)</div>
-            <div class="kpi-value" id="kpi-notyet">863</div>
+            <div class="kpi-value" id="kpi-notyet">0</div>
           </div>
           <i class="fa-solid fa-circle-check fa-2x" style="color: var(--status-green-text);"></i>
         </div>
@@ -327,7 +342,8 @@
                 <th>Equipment Status</th>
                 <th>PMS Interval</th>
                 <th>Current Reading</th>
-                <th>Last Service</th>
+                <th>Last Service Date</th>
+                <th>Last Service Reading</th>
                 <th>Projected Target</th>
                 <th>Units Left</th>
                 <th>Daily Usage</th>
@@ -338,7 +354,7 @@
               </tr>
             </thead>
             <tbody id="assetTableBody">
-              <!-- Rendered via JS -->
+              <!-- Rendered dynamically -->
             </tbody>
           </table>
         </div>
@@ -347,48 +363,64 @@
     </div>
   </main>
 
-  <!-- ================= LOG METER MODAL ================= -->
-  <div class="modal-overlay" id="meterModal">
+  <!-- ================= UPDATE PMS RECORDS MODAL ================= -->
+  <div class="modal-overlay" id="pmsModal">
     <div class="modal">
       <div class="modal-header">
-        <h3>Log Meter Reading</h3>
+        <h3>UPDATE PMS RECORDS</h3>
         <i class="fa-solid fa-xmark modal-close" onclick="closeModal()"></i>
       </div>
+      
+      <div class="asset-badge-info">
+        <span id="modalUnitDisplay">Unit: --</span>
+        <span id="modalTypeDisplay">Meter: --</span>
+      </div>
+
       <div class="modal-body">
         <div class="form-group">
-          <label>Select Asset</label>
-          <select id="modalAssetSelect" class="form-control" style="width: 100%;" onchange="loadAssetModalDetails()">
-            <!-- Populated dynamically -->
+          <label>DATE PMS PERFORMED</label>
+          <input type="date" id="modalPmsDate" class="form-control" style="width: 100%;">
+        </div>
+
+        <div class="form-group">
+          <label id="modalSmrLabel">SMR DURING PMS</label>
+          <input type="number" id="modalSmrReading" class="form-control" style="width: 100%;" placeholder="Enter meter reading during service">
+        </div>
+
+        <div class="form-group">
+          <label>NEXT PMS TYPE</label>
+          <select id="modalNextPmsType" class="form-control" style="width: 100%;">
+            <!-- Dynamically loaded based on SMR vs KM -->
           </select>
         </div>
+
         <div class="form-group">
-          <label>New Meter Reading (SMR / KM)</label>
-          <input type="number" id="modalNewReading" class="form-control" style="width: 100%;" placeholder="Enter updated reading">
-        </div>
-        <div class="form-group">
-          <label>Average Daily Usage (Hours / KM per day)</label>
-          <input type="number" id="modalDailyRate" class="form-control" style="width: 100%;" placeholder="Daily rate">
+          <label>AVERAGE DAILY USAGE (Hours / KM per day)</label>
+          <input type="number" step="0.1" id="modalDailyRate" class="form-control" style="width: 100%;" placeholder="Daily usage rate">
         </div>
       </div>
+
       <div class="modal-footer">
         <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
-        <button class="btn btn-primary" onclick="saveMeterLog()">Save Log</button>
+        <button class="btn btn-primary" onclick="savePmsRecord()">Update PMS Record</button>
       </div>
     </div>
   </div>
 
   <!-- ================= FRONTEND LOGIC & DEMO DATA ================= -->
   <script>
-    // Sample Dataset reflecting your CSV scans
+    let currentSelectedUnit = null;
+
+    // Sample Dataset derived from your SMR & KM sheets
     const assetsData = [
-      { unitNo: "BD-16", brand: "CAT D6R2", location: "Gem Motorpool", eqStatus: "OPERATIONAL", type: "SMR", interval: 500, current: 12459, lastService: 12459, daily: 6.5 },
-      { unitNo: "EX-04", brand: "Komatsu PC200", location: "Site Alpha", eqStatus: "OPERATIONAL", type: "SMR", interval: 250, current: 4810, lastService: 4550, daily: 8.0 },
-      { unitNo: "DT-12", brand: "ISUZU Dump Truck", location: "Site Beta", eqStatus: "OPERATIONAL", type: "KM", interval: 5000, current: 94800, lastService: 90000, daily: 40.0 },
-      { unitNo: "BT-03", brand: "FUSO FK41K", location: "Makilos", eqStatus: "OPERATIONAL", type: "KM", interval: 5000, current: 84200, lastService: 80000, daily: 45.0 },
-      { unitNo: "BD-09", brand: "Komatsu D85EX", location: "Los Amigos", eqStatus: "REHAB", type: "SMR", interval: 500, current: 8200, lastService: 8000, daily: 0.0 }
+      { unitNo: "BD-16", brand: "CAT D6R2", location: "Gem Motorpool", eqStatus: "OPERATIONAL", type: "SMR", interval: 500, current: 12459, lastDate: "2026-06-10", lastService: 12459, nextPmsType: "PM 1000", daily: 6.5 },
+      { unitNo: "EX-04", brand: "Komatsu PC200", location: "Site Alpha", eqStatus: "OPERATIONAL", type: "SMR", interval: 250, current: 4810, lastDate: "2026-05-15", lastService: 4550, nextPmsType: "PM 500", daily: 8.0 },
+      { unitNo: "DT-12", brand: "ISUZU Dump Truck", location: "Site Beta", eqStatus: "OPERATIONAL", type: "KM", interval: 5000, current: 94800, lastDate: "2026-04-20", lastService: 90000, nextPmsType: "10,000 KM", daily: 40.0 },
+      { unitNo: "BT-03", brand: "FUSO FK41K", location: "Makilos", eqStatus: "OPERATIONAL", type: "KM", interval: 5000, current: 84200, lastDate: "2026-03-10", lastService: 80000, nextPmsType: "5,000 KM", daily: 45.0 },
+      { unitNo: "BD-09", brand: "Komatsu D85EX", location: "Los Amigos", eqStatus: "REHAB", type: "SMR", interval: 500, current: 8200, lastDate: "2026-01-10", lastService: 8000, nextPmsType: "PM 500", daily: 0.0 }
     ];
 
-    // Calculate Business Rules (Skipping Sundays for Date)
+    // Calculate Working Days skipping Sundays
     function addWorkingDays(startDate, days) {
       let currentDate = new Date(startDate);
       let addedDays = 0;
@@ -426,12 +458,14 @@
       const tbody = document.getElementById("assetTableBody");
       tbody.innerHTML = "";
 
+      let overdueCount = 0, scheduleCount = 0, notYetCount = 0;
       const computed = assetsData.map(computeAsset);
 
       computed.forEach(item => {
         let badgeClass = "badge-green";
-        if (item.pmsStatus === "OVERDUE") badgeClass = "badge-red";
-        if (item.pmsStatus === "SCHEDULE ME") badgeClass = "badge-amber";
+        if (item.pmsStatus === "OVERDUE") { badgeClass = "badge-red"; overdueCount++; }
+        else if (item.pmsStatus === "SCHEDULE ME") { badgeClass = "badge-amber"; scheduleCount++; }
+        else { notYetCount++; }
 
         const tr = document.createElement("tr");
         tr.innerHTML = `
@@ -441,7 +475,8 @@
           <td><span class="badge badge-green">${item.eqStatus}</span></td>
           <td>${item.interval.toLocaleString()} ${item.unitLabel}</td>
           <td>${item.current.toLocaleString()} ${item.unitLabel}</td>
-          <td>${item.lastService.toLocaleString()}</td>
+          <td>${item.lastDate || 'N/A'}</td>
+          <td>${item.lastService.toLocaleString()} ${item.unitLabel}</td>
           <td><strong>${item.projectedTarget.toLocaleString()}</strong></td>
           <td style="color: ${item.unitsLeft < 0 ? 'red' : 'inherit'}">${item.unitsLeft.toLocaleString()} ${item.unitLabel}</td>
           <td>${item.daily} ${item.unitLabel}/day</td>
@@ -449,53 +484,82 @@
           <td>${item.targetDate}</td>
           <td><span class="badge ${badgeClass}">${item.pmsStatus}</span></td>
           <td>
-            <button class="btn btn-outline btn-sm" onclick="openModal('${item.unitNo}')">
-              <i class="fa-solid fa-pen-to-square"></i> Log
+            <button class="btn btn-outline btn-sm" onclick="openPmsModal('${item.unitNo}')">
+              <i class="fa-solid fa-wrench"></i> Update PMS
             </button>
           </td>
         `;
         tbody.appendChild(tr);
       });
+
+      // Update KPI Counter Summary Cards
+      document.getElementById("kpi-overdue").textContent = overdueCount;
+      document.getElementById("kpi-schedule").textContent = scheduleCount;
+      document.getElementById("kpi-notyet").textContent = notYetCount;
     }
 
-    function openModal(unitNo = "") {
-      const select = document.getElementById("modalAssetSelect");
-      select.innerHTML = "";
-      assetsData.forEach(a => {
-        const opt = document.createElement("option");
-        opt.value = a.unitNo;
-        opt.textContent = `${a.unitNo} - ${a.brand}`;
-        if (a.unitNo === unitNo) opt.selected = true;
-        select.appendChild(opt);
+    function openPmsModal(unitNo) {
+      currentSelectedUnit = unitNo;
+      const asset = assetsData.find(a => a.unitNo === unitNo);
+      if (!asset) return;
+
+      document.getElementById("modalUnitDisplay").textContent = `Unit: ${asset.unitNo} (${asset.brand})`;
+      document.getElementById("modalTypeDisplay").textContent = `Type: ${asset.type}`;
+      document.getElementById("modalSmrLabel").textContent = asset.type === "SMR" ? "SMR DURING PMS" : "ODOMETER DURING PMS";
+      
+      // Pre-fill fields
+      document.getElementById("modalPmsDate").value = new Date().toISOString().split('T')[0];
+      document.getElementById("modalSmrReading").value = asset.current;
+      document.getElementById("modalDailyRate").value = asset.daily;
+
+      // Populate PMS Type Options dynamically
+      const typeSelect = document.getElementById("modalNextPmsType");
+      typeSelect.innerHTML = "";
+      const pmsOptions = asset.type === "SMR" 
+        ? ["PM 250", "PM 500", "PM 1000", "PM 2000"]
+        : ["5,000 KM", "10,000 KM", "20,000 KM", "40,000 KM"];
+
+      pmsOptions.forEach(opt => {
+        const optionEl = document.createElement("option");
+        optionEl.value = opt;
+        optionEl.textContent = opt;
+        if (opt === asset.nextPmsType) optionEl.selected = true;
+        typeSelect.appendChild(optionEl);
       });
-      loadAssetModalDetails();
-      document.getElementById("meterModal").style.display = "flex";
+
+      document.getElementById("pmsModal").style.display = "flex";
     }
 
     function closeModal() {
-      document.getElementById("meterModal").style.display = "none";
+      document.getElementById("pmsModal").style.display = "none";
     }
 
-    function loadAssetModalDetails() {
-      const selectedUnit = document.getElementById("modalAssetSelect").value;
-      const asset = assetsData.find(a => a.unitNo === selectedUnit);
+    function savePmsRecord() {
+      if (!currentSelectedUnit) return;
+      
+      const asset = assetsData.find(a => a.unitNo === currentSelectedUnit);
       if (asset) {
-        document.getElementById("modalNewReading").value = asset.current;
-        document.getElementById("modalDailyRate").value = asset.daily;
+        const pmsDate = document.getElementById("modalPmsDate").value;
+        const pmsReading = parseFloat(document.getElementById("modalSmrReading").value);
+        const nextPmsType = document.getElementById("modalNextPmsType").value;
+        const dailyRate = parseFloat(document.getElementById("modalDailyRate").value);
+
+        // Update asset baseline to recalculate target schedule
+        asset.lastDate = pmsDate;
+        asset.lastService = pmsReading;
+        asset.current = pmsReading; // Update live meter reading to PMS completion reading
+        asset.nextPmsType = nextPmsType;
+        asset.daily = dailyRate;
+
+        // Auto re-render table and recalculate target schedule
+        renderTable();
+        closeModal();
       }
     }
 
-    function saveMeterLog() {
-      const selectedUnit = document.getElementById("modalAssetSelect").value;
-      const newReading = parseFloat(document.getElementById("modalNewReading").value);
-      const newDaily = parseFloat(document.getElementById("modalDailyRate").value);
-
-      const asset = assetsData.find(a => a.unitNo === selectedUnit);
-      if (asset) {
-        asset.current = newReading;
-        asset.daily = newDaily;
-        renderTable();
-        closeModal();
+    function openGeneralLogModal() {
+      if (assetsData.length > 0) {
+        openPmsModal(assetsData[0].unitNo);
       }
     }
 

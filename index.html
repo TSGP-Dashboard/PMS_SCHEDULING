@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PMS Scheduling & SMR/KM Log System</title>
+  <title>PMS Scheduling & Equipment Management</title>
   
   <!-- Google Fonts & FontAwesome Icons -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -33,7 +33,7 @@
       --status-amber-text: #92400e;
       --status-red-bg: #fee2e2;
       --status-red-text: #991b1b;
-      --log-header-bg: #7cb342; /* Excel green theme match */
+      --log-header-bg: #7cb342;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
@@ -84,7 +84,6 @@
       transition: all 0.2s ease;
     }
     .nav-item:hover { background-color: #e2e8f0; }
-    .nav-item.disabled { opacity: 0.5; cursor: not-allowed; }
     .nav-item.active {
       background-color: var(--light-blue-bg);
       color: var(--primary-blue);
@@ -185,6 +184,19 @@
     .btn-sm { padding: 5px 12px; font-size: 12px; }
     .btn-outline { background: #fff; border: 1px solid var(--border-card); color: var(--text-main); }
     .btn-outline:hover { background: #f1f5f9; }
+    .btn-outline:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Pagination Footer */
+    .panel-footer {
+      padding: 12px 20px;
+      border-top: 1px solid var(--border-card);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: #f8fafc;
+    }
+    .pagination-info { font-size: 13px; color: var(--text-muted); }
+    .pagination-controls { display: flex; gap: 8px; align-items: center; }
 
     /* Table General */
     .table-responsive { overflow-x: auto; max-width: 100%; }
@@ -274,26 +286,24 @@
       </div>
 
       <ul class="nav-list">
-        <div class="nav-section-title">Compliance</div>
+        <div class="nav-section-title">Maintenance Modules</div>
         <li>
-          <a class="nav-item disabled">
-            <i class="fa-solid fa-chart-pie"></i>
-            <span>PMS Compliance Dashboard</span>
+          <a class="nav-item active" id="nav-pms" onclick="switchView('pms')">
+            <i class="fa-solid fa-calendar-check"></i>
+            <span>PMS Scheduling</span>
           </a>
         </li>
-
-        <div class="nav-section-title">Maintenance</div>
         <li>
-          <a class="nav-item active">
-            <i class="fa-solid fa-calendar-check"></i>
-            <span>PMS Scheduling & Logs</span>
+          <a class="nav-item" id="nav-logs" onclick="switchView('logs')">
+            <i class="fa-solid fa-table-cells"></i>
+            <span>Daily SMR / KM Logs</span>
           </a>
         </li>
       </ul>
     </div>
 
     <div class="sidebar-footer">
-      <strong>Fleet & Heavy Equipment</strong><br>
+      <strong>Fleet Management</strong><br>
       <span id="footerTotalAssets">Loading assets...</span>
     </div>
   </aside>
@@ -301,7 +311,7 @@
   <!-- ================= 80% RIGHT DISPLAY ================= -->
   <main class="main-content">
     <header class="top-header">
-      <h2>PMS Scheduling & Daily SMR Log</h2>
+      <h2 id="mainHeaderTitle">PMS Scheduling Overview</h2>
     </header>
 
     <div class="content-container">
@@ -333,21 +343,29 @@
         </div>
       </div>
 
-      <!-- 1. PMS SCHEDULING TABLE PANEL -->
-      <div class="panel">
+      <!-- MODULE 1: PMS SCHEDULING VIEW -->
+      <div class="panel" id="pmsModuleView">
         <div class="panel-header">
           <div class="panel-title">
-            <i class="fa-solid fa-calendar-days" style="color: var(--primary-blue);"></i> PMS Scheduling Overview
+            <i class="fa-solid fa-calendar-days" style="color: var(--primary-blue);"></i> PMS Scheduling Table
           </div>
           <div class="filter-group">
-            <input type="text" id="searchInput" class="form-control" placeholder="Search Unit No, Model..." onkeyup="filterData()" style="width: 200px;">
+            <!-- 1. Equipment Group Filter (Prefixes like BD, BH, etc) -->
+            <select id="groupFilter" class="form-control" onchange="filterData()">
+              <option value="ALL">All Equipment Groups</option>
+            </select>
+
+            <!-- 2. Search Input -->
+            <input type="text" id="searchInput" class="form-control" placeholder="Search Unit No, Model..." onkeyup="filterData()" style="width: 180px;">
             
+            <!-- 3. Meter Type Filter -->
             <select id="typeFilter" class="form-control" onchange="filterData()">
               <option value="ALL">All Meters (SMR & KM)</option>
               <option value="SMR">SMR (Hours)</option>
               <option value="KM">KM (Odometer)</option>
             </select>
 
+            <!-- 4. PMS Status Filter -->
             <select id="statusFilter" class="form-control" onchange="filterData()">
               <option value="ALL">All PMS Statuses</option>
               <option value="OVERDUE">🔴 OVERDUE</option>
@@ -386,15 +404,33 @@
             </tbody>
           </table>
         </div>
+
+        <!-- PAGINATION CONTROLS (Max 20 Items per Page) -->
+        <div class="panel-footer">
+          <div class="pagination-info" id="paginationInfo">Showing 0-0 of 0 equipment</div>
+          <div class="pagination-controls">
+            <button class="btn btn-outline btn-sm" id="btnPrevPage" onclick="changePage(-1)">
+              <i class="fa-solid fa-chevron-left"></i> Return
+            </button>
+            <span id="pageIndicator" style="font-size: 13px; font-weight: 600; padding: 0 8px;">Page 1</span>
+            <button class="btn btn-outline btn-sm" id="btnNextPage" onclick="changePage(1)">
+              Next <i class="fa-solid fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
       </div>
 
-      <!-- 2. DAILY SMR / KM MONITORING MODULE -->
-      <div class="panel">
+      <!-- MODULE 2: DAILY SMR / KM LOGS VIEW -->
+      <div class="panel" id="logsModuleView" style="display: none;">
         <div class="panel-header">
           <div class="panel-title">
             <i class="fa-solid fa-table-cells" style="color: var(--log-header-bg);"></i> Daily SMR / KM Monitoring Matrix
           </div>
           <div class="filter-group">
+            <select id="logsGroupFilter" class="form-control" onchange="renderLogMatrix()">
+              <option value="ALL">All Equipment Groups</option>
+            </select>
+
             <button class="btn btn-outline btn-sm" onclick="shiftDateWindow(-14)">
               <i class="fa-solid fa-chevron-left"></i> Prev 14 Days
             </button>
@@ -412,7 +448,6 @@
             <thead>
               <tr id="logTableHeaderRow">
                 <th style="min-width: 130px; background-color: #e2e8f0;">EQUIPMENT ID</th>
-                <!-- Daily dates injected dynamically -->
               </tr>
             </thead>
             <tbody id="logTableBody">
@@ -455,9 +490,7 @@
 
         <div class="form-group">
           <label>NEXT PMS TYPE</label>
-          <select id="modalNextPmsType" class="form-control" style="width: 100%;">
-            <!-- Options dynamically populated -->
-          </select>
+          <select id="modalNextPmsType" class="form-control" style="width: 100%;"></select>
         </div>
 
         <div class="form-group">
@@ -476,26 +509,53 @@
   <!-- ================= APPLICATION SCRIPT ================= -->
   <script>
     // 1. SUPABASE CONNECTION CONFIGURATION
-    const SUPABASE_URL = 'https://YOUR_PROJECT_ID.supabase.co';
-    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+    const SUPABASE_URL = 'https://kndcixcfzwnmvimdfumb.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtuZGNpeGNmendubXZpbWRmdW1iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3NTAxMzcsImV4cCI6MjEwMDMyNjEzN30._JnKGCFhC_f2m7E9tlBpFbxzdahD65d3nL2VI0jgyJE';
     
-    // Initialize Supabase client
     window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const supabase = window.supabaseClient;
 
     let fleetDatabase = [];
-    let dailyLogMap = {}; // Format: { "BD-17_2026-07-20": 10118 }
-    let windowStartDate = new Date(); // Start date for matrix view
-    windowStartDate.setDate(windowStartDate.getDate() - 13); // Default show last 14 days
+    let currentFilteredData = [];
+    let dailyLogMap = {}; 
+    let windowStartDate = new Date(); 
+    windowStartDate.setDate(windowStartDate.getDate() - 13);
 
     let currentSelectedUnit = null;
+
+    // Pagination State (20 items limit)
+    let currentPage = 1;
+    const itemsPerPage = 20;
+
+    // View Switching Logic
+    function switchView(view) {
+      const pmsView = document.getElementById("pmsModuleView");
+      const logsView = document.getElementById("logsModuleView");
+      const navPms = document.getElementById("nav-pms");
+      const navLogs = document.getElementById("nav-logs");
+      const title = document.getElementById("mainHeaderTitle");
+
+      if (view === 'pms') {
+        pmsView.style.display = "block";
+        logsView.style.display = "none";
+        navPms.classList.add("active");
+        navLogs.classList.remove("active");
+        title.textContent = "PMS Scheduling Overview";
+      } else {
+        pmsView.style.display = "none";
+        logsView.style.display = "block";
+        navPms.classList.remove("active");
+        navLogs.classList.add("active");
+        title.textContent = "Daily SMR / KM Monitoring Logs";
+        renderLogMatrix();
+      }
+    }
 
     // 2. FETCH DATA FROM SUPABASE
     async function fetchFleetFromDB() {
       const tbody = document.getElementById("assetTableBody");
 
       try {
-        // Fetch Equipment Assets
         const { data: equipmentData, error: eqError } = await supabase
           .from('equipment')
           .select('*')
@@ -503,14 +563,12 @@
 
         if (eqError) throw eqError;
 
-        // Fetch Daily Readings Logs
         const { data: logData, error: logError } = await supabase
           .from('daily_logs')
           .select('*');
 
         if (logError) console.warn("Notice: Could not load daily_logs table yet.", logError.message);
 
-        // Process daily logs into map dictionary
         dailyLogMap = {};
         if (logData) {
           logData.forEach(log => {
@@ -519,11 +577,9 @@
           });
         }
 
-        // Map equipment array and automatically extract latest daily reading
         fleetDatabase = equipmentData.map(item => {
           const eqId = item.equipment_id;
 
-          // Find the latest reading recorded across daily logs for this asset
           let latestDailyReading = null;
           let latestDateStr = null;
 
@@ -537,7 +593,6 @@
             }
           });
 
-          // Use latest daily reading if present, otherwise fall back to database default
           const currentReading = (latestDailyReading !== null) 
             ? latestDailyReading 
             : parseFloat(item.current_reading) || 0;
@@ -558,26 +613,51 @@
         });
 
         document.getElementById('footerTotalAssets').textContent = `${fleetDatabase.length} Total Managed Assets`;
-        
-        // Synchronize UI Date Picker
         document.getElementById("datePickerStart").value = windowStartDate.toISOString().split('T')[0];
 
-        renderTable();
-        renderLogMatrix();
+        populateGroupDropdowns();
+        filterData();
 
       } catch (err) {
         console.error('Error fetching data:', err.message);
         tbody.innerHTML = `
           <tr>
             <td colspan="14" style="text-align: center; color: red; padding: 20px;">
-              <strong>Error Loading Data:</strong> ${err.message}. Please verify Supabase URL, Key & RLS policies.
+              <strong>Error Loading Data:</strong> ${err.message}. Please check connection.
             </td>
-          </tr>
-        `;
+          </tr>`;
       }
     }
 
-    // Working-day calculator excluding Sundays
+    // Populate Group Filter Options dynamically (BD, BH, DT, etc.)
+    function populateGroupDropdowns() {
+      const prefixes = new Set();
+      fleetDatabase.forEach(item => {
+        const parts = item.equipment_id.split('-');
+        if (parts.length > 0) {
+          prefixes.add(parts[0].toUpperCase());
+        }
+      });
+
+      const groupSelect = document.getElementById("groupFilter");
+      const logsGroupSelect = document.getElementById("logsGroupFilter");
+
+      groupSelect.innerHTML = `<option value="ALL">All Equipment Groups</option>`;
+      logsGroupSelect.innerHTML = `<option value="ALL">All Equipment Groups</option>`;
+
+      Array.from(prefixes).sort().forEach(prefix => {
+        const option1 = document.createElement("option");
+        option1.value = prefix;
+        option1.textContent = `${prefix} Series`;
+        groupSelect.appendChild(option1);
+
+        const option2 = document.createElement("option");
+        option2.value = prefix;
+        option2.textContent = `${prefix} Series`;
+        logsGroupSelect.appendChild(option2);
+      });
+    }
+
     function addWorkingDays(startDate, days) {
       let currentDate = new Date(startDate);
       let addedDays = 0;
@@ -611,25 +691,71 @@
       return { ...asset, projectedTarget, unitsLeft, daysLeft, targetDate, pmsStatus, unitLabel };
     }
 
-    // 3. RENDER PMS SCHEDULING TABLE
-    function renderTable(filteredData = fleetDatabase) {
+    // Filter Logic
+    function filterData() {
+      const groupVal = document.getElementById("groupFilter").value;
+      const searchVal = document.getElementById("searchInput").value.toLowerCase();
+      const typeVal = document.getElementById("typeFilter").value;
+      const statusVal = document.getElementById("statusFilter").value;
+
+      currentFilteredData = fleetDatabase.filter(a => {
+        const computed = computeAsset(a);
+        const matchesGroup = groupVal === "ALL" || a.equipment_id.toUpperCase().startsWith(groupVal);
+        const matchesSearch = a.equipment_id.toLowerCase().includes(searchVal) ||
+                              a.brand.toLowerCase().includes(searchVal) ||
+                              a.model.toLowerCase().includes(searchVal);
+        const matchesType = typeVal === "ALL" || a.meter_type === typeVal;
+        const matchesStatus = statusVal === "ALL" || computed.pmsStatus === statusVal;
+
+        return matchesGroup && matchesSearch && matchesType && matchesStatus;
+      });
+
+      currentPage = 1; // Reset to page 1 on filter change
+      updateKpis();
+      renderTable();
+    }
+
+    function updateKpis() {
+      let overdueCount = 0, scheduleCount = 0, notYetCount = 0;
+      fleetDatabase.forEach(rawAsset => {
+        const item = computeAsset(rawAsset);
+        if (item.pmsStatus === "OVERDUE") overdueCount++;
+        else if (item.pmsStatus === "SCHEDULE ME") scheduleCount++;
+        else notYetCount++;
+      });
+
+      document.getElementById("kpi-overdue").textContent = overdueCount;
+      document.getElementById("kpi-schedule").textContent = scheduleCount;
+      document.getElementById("kpi-notyet").textContent = notYetCount;
+    }
+
+    // 3. RENDER PMS TABLE WITH 20-ITEM PAGINATION
+    function renderTable() {
       const tbody = document.getElementById("assetTableBody");
       tbody.innerHTML = "";
 
-      if (filteredData.length === 0) {
+      const totalItems = currentFilteredData.length;
+      const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+
+      if (totalItems === 0) {
         tbody.innerHTML = `<tr><td colspan="14" style="text-align: center; padding: 20px; color: var(--text-muted);">No equipment found matching criteria.</td></tr>`;
+        document.getElementById("paginationInfo").textContent = "Showing 0 of 0 equipment";
+        document.getElementById("btnPrevPage").disabled = true;
+        document.getElementById("btnNextPage").disabled = true;
+        document.getElementById("pageIndicator").textContent = "Page 1 of 1";
         return;
       }
 
-      let overdueCount = 0, scheduleCount = 0, notYetCount = 0;
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+      const pageData = currentFilteredData.slice(startIndex, endIndex);
 
-      filteredData.forEach(rawAsset => {
+      pageData.forEach(rawAsset => {
         const item = computeAsset(rawAsset);
 
         let badgeClass = "badge-green";
-        if (item.pmsStatus === "OVERDUE") { badgeClass = "badge-red"; overdueCount++; }
-        else if (item.pmsStatus === "SCHEDULE ME") { badgeClass = "badge-amber"; scheduleCount++; }
-        else { notYetCount++; }
+        if (item.pmsStatus === "OVERDUE") badgeClass = "badge-red";
+        else if (item.pmsStatus === "SCHEDULE ME") badgeClass = "badge-amber";
 
         let eqStatusClass = "badge-green";
         if (item.equipment_status === "REHAB") eqStatusClass = "badge-amber";
@@ -659,17 +785,24 @@
         tbody.appendChild(tr);
       });
 
-      document.getElementById("kpi-overdue").textContent = overdueCount;
-      document.getElementById("kpi-schedule").textContent = scheduleCount;
-      document.getElementById("kpi-notyet").textContent = notYetCount;
+      // Update Pagination Bar
+      document.getElementById("paginationInfo").textContent = `Showing ${startIndex + 1}-${endIndex} of ${totalItems} equipment`;
+      document.getElementById("pageIndicator").textContent = `Page ${currentPage} of ${totalPages}`;
+      document.getElementById("btnPrevPage").disabled = currentPage === 1;
+      document.getElementById("btnNextPage").disabled = currentPage === totalPages;
+    }
+
+    function changePage(direction) {
+      currentPage += direction;
+      renderTable();
     }
 
     // 4. RENDER DAILY SMR / KM MATRIX TABLE
     function renderLogMatrix() {
       const headerRow = document.getElementById("logTableHeaderRow");
       const tbody = document.getElementById("logTableBody");
+      const selectedGroup = document.getElementById("logsGroupFilter").value;
 
-      // Generate 14-day date column headers
       const dateColumns = [];
       let tempDate = new Date(windowStartDate);
 
@@ -689,9 +822,10 @@
         tempDate.setDate(tempDate.getDate() + 1);
       }
 
-      // Render Matrix Rows
       tbody.innerHTML = "";
-      fleetDatabase.forEach(asset => {
+      const displayAssets = fleetDatabase.filter(a => selectedGroup === "ALL" || a.equipment_id.toUpperCase().startsWith(selectedGroup));
+
+      displayAssets.forEach(asset => {
         const tr = document.createElement("tr");
 
         let rowHtml = `<td><strong>${asset.equipment_id}</strong></td>`;
@@ -716,7 +850,7 @@
       });
     }
 
-    // 5. SAVE DAILY SMR / KM ENTRY & UPDATE CURRENT READING
+    // 5. SAVE LOG ENTRY & AUTOMATICALLY SYNC CURRENT READING
     async function saveDailyLog(equipmentId, logDate, value) {
       const numericVal = parseFloat(value);
       const logKey = `${equipmentId}_${logDate}`;
@@ -727,7 +861,6 @@
         dailyLogMap[logKey] = numericVal;
       }
 
-      // Find the latest recorded reading date across all logs for this equipment
       let latestReading = null;
       let latestDateStr = null;
 
@@ -741,33 +874,22 @@
         }
       });
 
-      // Update local asset model's current_reading
       const asset = fleetDatabase.find(a => a.equipment_id === equipmentId);
       if (asset && latestReading !== null) {
         asset.current_reading = latestReading;
-        renderTable(); // Refresh upper PMS scheduling calculations live
       }
 
-      // Persist log entry to Supabase
       try {
         if (!isNaN(numericVal)) {
-          const { error } = await supabase
-            .from('daily_logs')
-            .upsert({ 
-              equipment_id: equipmentId, 
-              log_date: logDate, 
-              reading: numericVal 
-            }, { onConflict: 'equipment_id, log_date' });
-
-          if (error) throw error;
+          await supabase.from('daily_logs').upsert({ 
+            equipment_id: equipmentId, 
+            log_date: logDate, 
+            reading: numericVal 
+          }, { onConflict: 'equipment_id, log_date' });
         }
 
-        // Also update equipment table's current_reading
         if (asset && latestReading !== null) {
-          await supabase
-            .from('equipment')
-            .update({ current_reading: latestReading })
-            .eq('equipment_id', equipmentId);
+          await supabase.from('equipment').update({ current_reading: latestReading }).eq('equipment_id', equipmentId);
         }
 
       } catch (err) {
@@ -775,7 +897,6 @@
       }
     }
 
-    // Date Shift Controls for Log Matrix
     function shiftDateWindow(days) {
       windowStartDate.setDate(windowStartDate.getDate() + days);
       document.getElementById("datePickerStart").value = windowStartDate.toISOString().split('T')[0];
@@ -787,25 +908,6 @@
         windowStartDate = new Date(newDateStr);
         renderLogMatrix();
       }
-    }
-
-    function filterData() {
-      const searchVal = document.getElementById("searchInput").value.toLowerCase();
-      const typeVal = document.getElementById("typeFilter").value;
-      const statusVal = document.getElementById("statusFilter").value;
-
-      const filtered = fleetDatabase.filter(a => {
-        const computed = computeAsset(a);
-        const matchesSearch = a.equipment_id.toLowerCase().includes(searchVal) ||
-                              a.brand.toLowerCase().includes(searchVal) ||
-                              a.model.toLowerCase().includes(searchVal);
-        const matchesType = typeVal === "ALL" || a.meter_type === typeVal;
-        const matchesStatus = statusVal === "ALL" || computed.pmsStatus === statusVal;
-
-        return matchesSearch && matchesType && matchesStatus;
-      });
-
-      renderTable(filtered);
     }
 
     function openPmsModal(equipmentId) {
@@ -880,7 +982,6 @@
       }
     }
 
-    // Trigger initial load
     window.addEventListener('DOMContentLoaded', fetchFleetFromDB);
   </script>
 </body>

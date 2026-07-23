@@ -4,12 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PMS Scheduling System</title>
+  
   <!-- Google Fonts & FontAwesome Icons -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
+  <!-- Supabase JS Client Library -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <style>
-    /* --- LIGHT COLOR PALETTE & RESET --- */
+    /* --- COLOR PALETTE & LAYOUT RESET --- */
     :root {
       --bg-sidebar: #f0f3f6;
       --border-sidebar: #dcdfe4;
@@ -133,7 +137,7 @@
     .kpi-card.amber .kpi-value { color: var(--status-amber-text); }
     .kpi-card.green .kpi-value { color: var(--status-green-text); }
 
-    /* Table Container & Filter Bar */
+    /* Table Panel & Filter Bar */
     .panel {
       background: var(--bg-card);
       border: 1px solid var(--border-card);
@@ -179,7 +183,7 @@
     .btn-outline { background: #fff; border: 1px solid var(--border-card); color: var(--text-main); }
     .btn-outline:hover { background: #f1f5f9; }
 
-    /* Data Table */
+    /* Table */
     .table-responsive { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
     th {
@@ -205,7 +209,6 @@
     .badge-green { background: var(--status-green-bg); color: var(--status-green-text); }
     .badge-amber { background: var(--status-amber-bg); color: var(--status-amber-text); }
     .badge-red { background: var(--status-red-bg); color: var(--status-red-text); }
-    .badge-gray { background: #e2e8f0; color: #475569; }
 
     /* MODAL */
     .modal-overlay {
@@ -262,18 +265,12 @@
             <span>PMS Scheduling</span>
           </a>
         </li>
-        <li>
-          <a class="nav-item" onclick="openGeneralLogModal()">
-            <i class="fa-solid fa-gauge-high"></i>
-            <span>Log Meter Reading</span>
-          </a>
-        </li>
       </ul>
     </div>
 
     <div class="sidebar-footer">
       <strong>Fleet & Heavy Equipment</strong><br>
-      <span id="footerTotalAssets">548 Total Managed Assets</span>
+      <span id="footerTotalAssets">Loading assets...</span>
     </div>
   </aside>
 
@@ -285,7 +282,7 @@
 
     <div class="content-container">
       
-      <!-- Top Summary KPI Cards -->
+      <!-- Top Summary Cards -->
       <div class="kpi-grid">
         <div class="kpi-card red">
           <div>
@@ -354,7 +351,11 @@
               </tr>
             </thead>
             <tbody id="assetTableBody">
-              <!-- Rendered dynamically from database records -->
+              <tr>
+                <td colspan="14" style="text-align: center; padding: 24px; color: var(--text-muted);">
+                  <i class="fa-solid fa-spinner fa-spin"></i> Fetching live records from database...
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -390,7 +391,7 @@
         <div class="form-group">
           <label>NEXT PMS TYPE</label>
           <select id="modalNextPmsType" class="form-control" style="width: 100%;">
-            <!-- Dynamically populated -->
+            <!-- Options dynamically populated -->
           </select>
         </div>
 
@@ -407,21 +408,59 @@
     </div>
   </div>
 
-  <!-- ================= FRONTEND LOGIC & DB INTEGRATION ================= -->
+  <!-- ================= SUPABASE INTEGRATION & LOGIC ================= -->
   <script>
+    // 1. SUPABASE CONNECTION CONFIGURATION
+    // Replace these credentials with your actual Supabase URL & Anon API Key
+    const SUPABASE_URL = 'https://kndcixcfzwnmvimdfumb.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtuZGNpeGNmendubXZpbWRmdW1iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3NTAxMzcsImV4cCI6MjEwMDMyNjEzN30._JnKGCFhC_f2m7E9tlBpFbxzdahD65d3nL2VI0jgyJE';
+    
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let fleetDatabase = [];
     let currentSelectedUnit = null;
 
-    // Database structure matching your uploaded table: equipment_id (VARCHAR), brand, model, meter_type, etc.
-    const fleetDatabase = [
-      { equipment_id: "BD-10", brand: "KOMATSU", model: "D85EX", meter_type: "SMR", pms_interval: 500, current_reading: 0, avg_daily_usage: 6.5, equipment_status: "REHAB", last_service_date: "2026-01-15", last_service_reading: 0, next_pms_type: "PM 500" },
-      { equipment_id: "BD-14", brand: "CATERPILLAR", model: "D7R11", meter_type: "SMR", pms_interval: 500, current_reading: 0, avg_daily_usage: 6.5, equipment_status: "REHAB", last_service_date: "2026-02-01", last_service_reading: 0, next_pms_type: "PM 500" },
-      { equipment_id: "BD-16", brand: "CATERPILLAR", model: "D6R2", meter_type: "SMR", pms_interval: 500, current_reading: 12459, avg_daily_usage: 6.5, equipment_status: "OPERATIONAL", last_service_date: "2026-06-10", last_service_reading: 12459, next_pms_type: "PM 1000" },
-      { equipment_id: "BD-17", brand: "CATERPILLAR", model: "D6R2", meter_type: "SMR", pms_interval: 500, current_reading: 10118, avg_daily_usage: 6.5, equipment_status: "REHAB", last_service_date: "2026-05-12", last_service_reading: 10000, next_pms_type: "PM 500" },
-      { equipment_id: "BD-18", brand: "CATERPILLAR", model: "D6R2", meter_type: "SMR", pms_interval: 500, current_reading: 9335, avg_daily_usage: 6.5, equipment_status: "OPERATIONAL", last_service_date: "2026-06-01", last_service_reading: 9000, next_pms_type: "PM 500" },
-      { equipment_id: "BD-20", brand: "CATERPILLAR", model: "D7R11", meter_type: "SMR", pms_interval: 500, current_reading: 11303, avg_daily_usage: 6.5, equipment_status: "OPERATIONAL", last_service_date: "2026-04-18", last_service_reading: 11000, next_pms_type: "PM 500" },  { equipment_id: "BD-27", brand: "CATERPILLAR", model: "D6R2", meter_type: "SMR", pms_interval: 500, current_reading: 9250, avg_daily_usage: 6.5, equipment_status: "OPERATIONAL", last_service_date: "2026-06-15", last_service_reading: 9000, next_pms_type: "PM 500" }
-    ];
+    // 2. FETCH LIVE DATA FROM SUPABASE
+    async function fetchFleetFromDB() {
+      try {
+        const { data, error } = await supabase
+          .from('equipment')
+          .select('*')
+          .order('equipment_id', { ascending: true });
 
-    // Working days calculator excluding Sundays
+        if (error) throw error;
+
+        // Map DB record rows safely to JS object properties
+        fleetDatabase = data.map(item => ({
+          equipment_id: item.equipment_id,
+          brand: item.brand || 'UNKNOWN',
+          model: item.model || 'UNKNOWN',
+          meter_type: item.meter_type ? item.meter_type.toUpperCase() : 'SMR',
+          pms_interval: parseFloat(item.pms_interval) || 500,
+          current_reading: parseFloat(item.current_reading) || 0,
+          avg_daily_usage: parseFloat(item.avg_daily_usage) || 6.5,
+          equipment_status: item.equipment_status || 'OPERATIONAL',
+          last_service_date: item.last_service_date || new Date().toISOString().split('T')[0],
+          last_service_reading: parseFloat(item.last_service_reading) || 0,
+          next_pms_type: item.next_pms_type || 'PM 500'
+        }));
+
+        document.getElementById('footerTotalAssets').textContent = `${fleetDatabase.length} Total Managed Assets`;
+        renderTable();
+
+      } catch (err) {
+        console.error('Error loading Supabase data:', err.message);
+        document.getElementById("assetTableBody").innerHTML = `
+          <tr>
+            <td colspan="14" style="text-align: center; color: red; padding: 20px;">
+              <strong>Database Fetch Error:</strong> ${err.message}. Check Supabase URL / Anon key and RLS settings.
+            </td>
+          </tr>
+        `;
+      }
+    }
+
+    // Working-day calculator excluding Sundays
     function addWorkingDays(startDate, days) {
       let currentDate = new Date(startDate);
       let addedDays = 0;
@@ -464,6 +503,11 @@
       const tbody = document.getElementById("assetTableBody");
       tbody.innerHTML = "";
 
+      if (filteredData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="14" style="text-align: center; padding: 20px; color: var(--text-muted);">No equipment found matching criteria.</td></tr>`;
+        return;
+      }
+
       let overdueCount = 0, scheduleCount = 0, notYetCount = 0;
 
       filteredData.forEach(rawAsset => {
@@ -490,7 +534,7 @@
           <td><strong>${item.projectedTarget.toLocaleString()}</strong></td>
           <td style="color: ${item.unitsLeft < 0 ? 'red' : 'inherit'}">${item.unitsLeft.toLocaleString()} ${item.unitLabel}</td>
           <td>${item.avg_daily_usage} ${item.unitLabel}/day</td>
-          <td><strong>${item.daysLeft < 0 ? item.daysLeft : item.daysLeft}</strong></td>
+          <td><strong>${item.daysLeft}</strong></td>
           <td>${item.targetDate}</td>
           <td><span class="badge ${badgeClass}">${item.pmsStatus}</span></td>
           <td>
@@ -502,7 +546,7 @@
         tbody.appendChild(tr);
       });
 
-      // Update Top KPI Counters
+      // Update KPI Counter Cards
       document.getElementById("kpi-overdue").textContent = overdueCount;
       document.getElementById("kpi-schedule").textContent = scheduleCount;
       document.getElementById("kpi-notyet").textContent = notYetCount;
@@ -536,12 +580,10 @@
       document.getElementById("modalTypeDisplay").textContent = `Meter Type: ${asset.meter_type}`;
       document.getElementById("modalSmrLabel").textContent = asset.meter_type === "SMR" ? "SMR DURING PMS" : "ODOMETER DURING PMS";
       
-      // Default inputs
       document.getElementById("modalPmsDate").value = new Date().toISOString().split('T')[0];
       document.getElementById("modalSmrReading").value = asset.current_reading;
       document.getElementById("modalDailyRate").value = asset.avg_daily_usage;
 
-      // Populate PMS Options
       const typeSelect = document.getElementById("modalNextPmsType");
       typeSelect.innerHTML = "";
       const pmsOptions = asset.meter_type === "SMR" 
@@ -563,30 +605,48 @@
       document.getElementById("pmsModal").style.display = "none";
     }
 
-    function savePmsRecord() {
+    // 3. UPDATE RECORDS BACK TO SUPABASE DB
+    async function savePmsRecord() {
       if (!currentSelectedUnit) return;
-      
+
       const asset = fleetDatabase.find(a => a.equipment_id === currentSelectedUnit);
-      if (asset) {
-        asset.last_service_date = document.getElementById("modalPmsDate").value;
-        asset.last_service_reading = parseFloat(document.getElementById("modalSmrReading").value);
-        asset.current_reading = asset.last_service_reading;
-        asset.next_pms_type = document.getElementById("modalNextPmsType").value;
-        asset.avg_daily_usage = parseFloat(document.getElementById("modalDailyRate").value);
+      if (!asset) return;
+
+      const updatedDate = document.getElementById("modalPmsDate").value;
+      const updatedReading = parseFloat(document.getElementById("modalSmrReading").value);
+      const updatedNextPms = document.getElementById("modalNextPmsType").value;
+      const updatedDailyRate = parseFloat(document.getElementById("modalDailyRate").value);
+
+      try {
+        const { error } = await supabase
+          .from('equipment')
+          .update({
+            current_reading: updatedReading,
+            last_service_reading: updatedReading,
+            last_service_date: updatedDate,
+            next_pms_type: updatedNextPms,
+            avg_daily_usage: updatedDailyRate
+          })
+          .eq('equipment_id', currentSelectedUnit);
+
+        if (error) throw error;
+
+        // Local state update
+        asset.last_service_date = updatedDate;
+        asset.last_service_reading = updatedReading;
+        asset.current_reading = updatedReading;
+        asset.next_pms_type = updatedNextPms;
+        asset.avg_daily_usage = updatedDailyRate;
 
         renderTable();
         closeModal();
+      } catch (err) {
+        alert("Failed to update database: " + err.message);
       }
     }
 
-    function openGeneralLogModal() {
-      if (fleetDatabase.length > 0) {
-        openPmsModal(fleetDatabase[0].equipment_id);
-      }
-    }
-
-    // Initialize Page
-    renderTable();
+    // Trigger fetch on page load
+    window.addEventListener('DOMContentLoaded', fetchFleetFromDB);
   </script>
 </body>
 </html>

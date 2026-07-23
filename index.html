@@ -35,6 +35,8 @@
       --status-red-text: #991b1b;
       --log-header-bg: #7cb342;
       --calendar-header-bg: #475569;
+      --excel-green: #16a34a;
+      --excel-green-hover: #15803d;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
@@ -186,6 +188,8 @@
     }
     .btn-primary { background-color: var(--primary-blue); color: #fff; }
     .btn-primary:hover { background-color: var(--primary-blue-hover); }
+    .btn-excel { background-color: var(--excel-green); color: #fff; }
+    .btn-excel:hover { background-color: var(--excel-green-hover); }
     .btn-sm { padding: 3px 8px; font-size: 11px; height: 24px; }
     .btn-outline { background: #fff; border: 1px solid var(--border-card); color: var(--text-main); }
     .btn-outline:hover { background: #f1f5f9; }
@@ -492,23 +496,27 @@
         </div>
       </div>
 
-      <!-- MODULE 3: PMS CALENDAR VIEW -->
+      <!-- MODULE 3: PMS CALENDAR VIEW (LIMITED TO 8 WEEKS) -->
       <div class="panel" id="calendarModuleView" style="display: none;">
         <div class="panel-header">
           <div class="panel-title">
             <i class="fa-solid fa-calendar-week" style="color: var(--calendar-header-bg);"></i> PMS Weekly Schedule Matrix
           </div>
           <div class="filter-group">
-            <select id="calGroupFilter" class="form-control" onchange="renderCalendarMatrix()">
+            <select id="calGroupFilter" class="form-control" onchange="onCalendarFilterChange()">
               <option value="ALL">All Equipment Groups</option>
             </select>
 
-            <button class="btn btn-outline btn-sm" onclick="shiftCalendarWeeks(-4)">
-              <i class="fa-solid fa-chevron-left"></i> Prev 4 Weeks
+            <button class="btn btn-excel btn-sm" onclick="exportCalendarToExcel()">
+              <i class="fa-solid fa-file-excel"></i> Export Selected Weeks
             </button>
 
-            <button class="btn btn-outline btn-sm" onclick="shiftCalendarWeeks(4)">
-              Next 4 Weeks <i class="fa-solid fa-chevron-right"></i>
+            <button class="btn btn-outline btn-sm" onclick="shiftCalendarWeeks(-8)">
+              <i class="fa-solid fa-chevron-left"></i> Prev 8 Weeks
+            </button>
+
+            <button class="btn btn-outline btn-sm" onclick="shiftCalendarWeeks(8)">
+              Next 8 Weeks <i class="fa-solid fa-chevron-right"></i>
             </button>
           </div>
         </div>
@@ -528,6 +536,20 @@
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- PMS CALENDAR BOTTOM PAGINATION -->
+        <div class="panel-footer">
+          <div class="pagination-info" id="calPaginationInfo">Showing 0-0 of 0 equipment</div>
+          <div class="pagination-controls">
+            <button class="btn btn-outline btn-sm" id="btnCalPrevPage" onclick="changeCalPage(-1)">
+              <i class="fa-solid fa-chevron-left"></i> Return
+            </button>
+            <span id="calPageIndicator" style="font-size: 11px; font-weight: 600; padding: 0 6px;">Page 1</span>
+            <button class="btn btn-outline btn-sm" id="btnCalNextPage" onclick="changeCalPage(1)">
+              Next <i class="fa-solid fa-chevron-right"></i>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -631,12 +653,14 @@
     let windowStartDate = new Date(); 
     windowStartDate.setDate(windowStartDate.getDate() - 13);
 
-    // Calendar state (Saturday anchor)
-    let calendarStartWeekOffset = 0; // Number of 4-week window shifts
+    // Calendar state (Saturday anchor & 8-week display)
+    let calendarStartWeekOffset = 0; 
+    let calCurrentPage = 1;
+    const calItemsPerPage = 20;
 
     let currentSelectedUnit = null;
 
-    // Pagination State
+    // Pagination State for PMS Module
     let currentPage = 1;
     const itemsPerPage = 20;
 
@@ -644,7 +668,6 @@
     function getSaturdayStart(d) {
       const date = new Date(d);
       const day = date.getDay();
-      // Saturday = 6. If Sunday(0), offset is -1 day to Saturday. Else subtract (day - 6).
       const diff = date.getDate() - day + (day === 6 ? 0 : -1 - day);
       date.setDate(diff);
       date.setHours(0,0,0,0);
@@ -1053,7 +1076,7 @@
       }
     }
 
-    /* MODULE 3: PMS CALENDAR MATRIX IMPLEMENTATION */
+    /* MODULE 3: PMS CALENDAR MATRIX IMPLEMENTATION (8-WEEK VIEWPORT & PAGINATION) */
     function renderCalendarMatrix() {
       const headerRow = document.getElementById("calTableHeaderRow");
       const tbody = document.getElementById("calTableBody");
@@ -1069,8 +1092,8 @@
 
       const weekColumns = [];
 
-      // Display 12 consecutive weeks
-      for (let i = 0; i < 12; i++) {
+      // DISPLAY EXACTLY 8 WEEKS FOR CLEANER UI
+      for (let i = 0; i < 8; i++) {
         const satDate = new Date(baseSat);
         satDate.setDate(satDate.getDate() + (i * 7));
 
@@ -1085,7 +1108,8 @@
         weekColumns.push({
           weekNum,
           start: satDate,
-          end: friDate
+          end: friDate,
+          headerLabel: `W${weekNum} (${formatShort(satDate)} - ${formatShort(friDate)})`
         });
 
         const th = document.createElement("th");
@@ -1097,14 +1121,30 @@
       tbody.innerHTML = "";
       const displayAssets = fleetDatabase.filter(a => selectedGroup === "ALL" || a.equipment_id.toUpperCase().startsWith(selectedGroup));
 
-      displayAssets.forEach(rawAsset => {
+      // CALENDAR PAGINATION LOGIC (20 ITEMS PER PAGE)
+      const totalCalItems = displayAssets.length;
+      const totalCalPages = Math.ceil(totalCalItems / calItemsPerPage) || 1;
+
+      if (totalCalItems === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; padding: 12px; color: var(--text-muted);">No equipment found matching group filter.</td></tr>`;
+        document.getElementById("calPaginationInfo").textContent = "Showing 0 of 0 equipment";
+        document.getElementById("btnCalPrevPage").disabled = true;
+        document.getElementById("btnCalNextPage").disabled = true;
+        document.getElementById("calPageIndicator").textContent = "Page 1 of 1";
+        return;
+      }
+
+      const startIndex = (calCurrentPage - 1) * calItemsPerPage;
+      const endIndex = Math.min(startIndex + calItemsPerPage, totalCalItems);
+      const pageCalData = displayAssets.slice(startIndex, endIndex);
+
+      pageCalData.forEach(rawAsset => {
         const item = computeAsset(rawAsset);
         const tr = document.createElement("tr");
 
         let rowHtml = `<td><strong>${item.equipment_id}</strong></td>`;
 
         weekColumns.forEach(week => {
-          // Check if target date falls in this Saturday - Friday week
           const isDueThisWeek = item.targetRawDate >= week.start && item.targetRawDate <= week.end;
           
           if (isDueThisWeek || (item.pmsStatus === "OVERDUE" && week.weekNum === getWeekNumber(getSaturdayStart(new Date())))) {
@@ -1127,11 +1167,102 @@
         tr.innerHTML = rowHtml;
         tbody.appendChild(tr);
       });
+
+      // Update Pagination Controls
+      document.getElementById("calPaginationInfo").textContent = `Showing ${startIndex + 1}-${endIndex} of ${totalCalItems} equipment`;
+      document.getElementById("calPageIndicator").textContent = `Page ${calCurrentPage} of ${totalCalPages}`;
+      document.getElementById("btnCalPrevPage").disabled = calCurrentPage === 1;
+      document.getElementById("btnCalNextPage").disabled = calCurrentPage === totalCalPages;
+    }
+
+    function changeCalPage(direction) {
+      calCurrentPage += direction;
+      renderCalendarMatrix();
+    }
+
+    function onCalendarFilterChange() {
+      calCurrentPage = 1;
+      renderCalendarMatrix();
     }
 
     function shiftCalendarWeeks(weeks) {
       calendarStartWeekOffset += weeks;
       renderCalendarMatrix();
+    }
+
+    /* EXPORT EXCEL FOR SELECTED 8 WEEKS ONLY */
+    function exportCalendarToExcel() {
+      const selectedGroup = document.getElementById("calGroupFilter") ? document.getElementById("calGroupFilter").value : "ALL";
+      const displayAssets = fleetDatabase.filter(a => selectedGroup === "ALL" || a.equipment_id.toUpperCase().startsWith(selectedGroup));
+
+      if (displayAssets.length === 0) {
+        alert("No equipment data available to export.");
+        return;
+      }
+
+      // Compute current 8 visible weeks
+      const baseSat = new Date(ANCHOR_SATURDAY);
+      baseSat.setDate(baseSat.getDate() + (calendarStartWeekOffset * 7));
+
+      const visibleWeeks = [];
+      const formatShort = (d) => `${d.toLocaleString('default', { month: 'short' })} ${d.getDate()}`;
+
+      for (let i = 0; i < 8; i++) {
+        const satDate = new Date(baseSat);
+        satDate.setDate(satDate.getDate() + (i * 7));
+
+        const friDate = new Date(satDate);
+        friDate.setDate(friDate.getDate() + 6);
+
+        const weekNum = getWeekNumber(satDate);
+        visibleWeeks.push({
+          weekNum,
+          start: satDate,
+          end: friDate,
+          title: `W${weekNum} (${formatShort(satDate)}-${formatShort(friDate)})`
+        });
+      }
+
+      // Build CSV Data Header Row
+      let csvLines = [];
+      let headers = ['Equipment ID', 'Brand', 'Model', 'Status', ...visibleWeeks.map(w => `"${w.title}"`)];
+      csvLines.push(headers.join(','));
+
+      // Build Data Rows
+      displayAssets.forEach(rawAsset => {
+        const item = computeAsset(rawAsset);
+        let row = [
+          `"${item.equipment_id}"`,
+          `"${item.brand}"`,
+          `"${item.model}"`,
+          `"${item.pmsStatus}"`
+        ];
+
+        visibleWeeks.forEach(week => {
+          const isDueThisWeek = item.targetRawDate >= week.start && item.targetRawDate <= week.end;
+          if (isDueThisWeek || (item.pmsStatus === "OVERDUE" && week.weekNum === getWeekNumber(getSaturdayStart(new Date())))) {
+            row.push(`"${item.next_pms_type || 'PMS'} (${item.pmsStatus})"`);
+          } else {
+            row.push(`"-"`);
+          }
+        });
+
+        csvLines.push(row.join(','));
+      });
+
+      // Trigger File Download
+      const csvContent = "data:text/csv;charset=utf-8," + csvLines.join("\n");
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      
+      const startW = visibleWeeks[0].weekNum;
+      const endW = visibleWeeks[visibleWeeks.length - 1].weekNum;
+      link.setAttribute("download", `PMS_Schedule_W${startW}_to_W${endW}.csv`);
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
 
     function openPmsModal(equipmentId) {

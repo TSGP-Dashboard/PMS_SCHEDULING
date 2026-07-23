@@ -307,7 +307,7 @@
     .badge-amber { background: var(--status-amber-bg); color: var(--status-amber-text); }
     .badge-red { background: var(--status-red-bg); color: var(--status-red-text); }
 
-    /* MODAL */
+    /* MODALS */
     .modal-overlay {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(15, 23, 42, 0.4); display: none; justify-content: center; align-items: center; z-index: 1000;
@@ -315,6 +315,7 @@
     .modal {
       background: #fff; border-radius: 8px; width: 440px; padding: 18px;
       box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 1px solid var(--border-card);
+      max-height: 90vh; overflow-y: auto;
     }
     .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border-card); padding-bottom: 8px; }
     .modal-header h3 { font-size: 14px; font-weight: 700; color: var(--text-main); }
@@ -357,6 +358,12 @@
           <a class="nav-item" id="nav-calendar" onclick="switchView('calendar')">
             <i class="fa-solid fa-calendar-days"></i>
             <span>PMS Calendar</span>
+          </a>
+        </li>
+        <li>
+          <a class="nav-item" id="nav-fleet" onclick="switchView('fleet')">
+            <i class="fa-solid fa-truck-ramp-box"></i>
+            <span>Fleet Information</span>
           </a>
         </li>
       </ul>
@@ -592,6 +599,65 @@
         </div>
       </div>
 
+      <!-- MODULE 4: FLEET INFORMATION VIEW -->
+      <div class="panel" id="fleetModuleView" style="display: none;">
+        <div class="panel-header">
+          <div class="panel-title">
+            <i class="fa-solid fa-truck-ramp-box" style="color: var(--primary-blue);"></i> Fleet Master Register & Location Control
+          </div>
+          <div class="filter-group">
+            <button class="btn btn-primary" id="btnAddEquipmentBtn" onclick="openAddEquipmentModal()">
+              <i class="fa-solid fa-plus"></i> Add Equipment
+            </button>
+
+            <select id="fleetGroupFilter" class="form-control" onchange="filterFleetData()">
+              <option value="ALL">All Equipment Groups</option>
+            </select>
+
+            <input type="text" id="fleetSearchInput" class="form-control" placeholder="Search ID, Brand, Location..." onkeyup="filterFleetData()" style="width: 160px;">
+
+            <button class="btn btn-excel btn-sm" onclick="exportFleetToExcel()">
+              <i class="fa-solid fa-file-excel"></i> Export Fleet Info
+            </button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Equipment ID</th>
+                <th>Brand & Model</th>
+                <th>Location</th>
+                <th>Region</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="fleetTableBody">
+              <tr>
+                <td colspan="6" style="text-align: center; padding: 16px; color: var(--text-muted);">
+                  Loading fleet data...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="panel-footer">
+          <div class="pagination-info" id="fleetPaginationInfo">Showing 0-0 of 0 equipment</div>
+          <div class="pagination-controls">
+            <button class="btn btn-outline btn-sm" id="btnFleetPrevPage" onclick="changeFleetPage(-1)">
+              <i class="fa-solid fa-chevron-left"></i> Return
+            </button>
+            <span id="fleetPageIndicator" style="font-size: 11px; font-weight: 600; padding: 0 6px;">Page 1</span>
+            <button class="btn btn-outline btn-sm" id="btnFleetNextPage" onclick="changeFleetPage(1)">
+              Next <i class="fa-solid fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
     </div>
   </main>
 
@@ -600,7 +666,7 @@
     <div class="modal">
       <div class="modal-header">
         <h3>UPDATE PMS RECORDS</h3>
-        <i class="fa-solid fa-xmark modal-close" onclick="closeModal()"></i>
+        <i class="fa-solid fa-xmark modal-close" onclick="closeModal('pmsModal')"></i>
       </div>
       
       <div class="asset-badge-info">
@@ -631,8 +697,120 @@
       </div>
 
       <div class="modal-footer">
-        <button class="btn btn-outline btn-sm" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-outline btn-sm" onclick="closeModal('pmsModal')">Cancel</button>
         <button class="btn btn-primary btn-sm" id="btnSavePmsModal" onclick="savePmsRecord()">Update PMS Record</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= EDIT LOCATION & STATUS MODAL ================= -->
+  <div class="modal-overlay" id="editFleetModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>EDIT LOCATION & STATUS</h3>
+        <i class="fa-solid fa-xmark modal-close" onclick="closeModal('editFleetModal')"></i>
+      </div>
+      
+      <div class="asset-badge-info">
+        <span id="editFleetUnitDisplay">Unit: --</span>
+        <span id="editFleetModelDisplay">Model: --</span>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label>LOCATION / SITE</label>
+          <input type="text" id="editFleetLocation" class="form-control" style="width: 100%;" placeholder="e.g. Davao Quarry Site 1">
+        </div>
+
+        <div class="form-group">
+          <label>REGION</label>
+          <input type="text" id="editFleetRegion" class="form-control" style="width: 100%;" placeholder="e.g. Region XI - Mindanao">
+        </div>
+
+        <div class="form-group">
+          <label>EQUIPMENT STATUS</label>
+          <select id="editFleetStatus" class="form-control" style="width: 100%;">
+            <option value="OPERATIONAL">OPERATIONAL</option>
+            <option value="REHAB">REHAB</option>
+            <option value="BREAKDOWN">BREAKDOWN</option>
+            <option value="STANDBY">STANDBY</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline btn-sm" onclick="closeModal('editFleetModal')">Cancel</button>
+        <button class="btn btn-primary btn-sm" onclick="saveFleetInfoChanges()">Save Location & Status</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ADD EQUIPMENT MODAL (ADMIN ONLY) ================= -->
+  <div class="modal-overlay" id="addEquipmentModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>ADD NEW EQUIPMENT</h3>
+        <i class="fa-solid fa-xmark modal-close" onclick="closeModal('addEquipmentModal')"></i>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label>EQUIPMENT ID (Unit No.)</label>
+          <input type="text" id="addEqId" class="form-control" style="width: 100%;" placeholder="e.g. DT-105 or EX-201">
+        </div>
+
+        <div class="form-group">
+          <label>BRAND</label>
+          <input type="text" id="addEqBrand" class="form-control" style="width: 100%;" placeholder="e.g. Caterpillar, Komatsu">
+        </div>
+
+        <div class="form-group">
+          <label>MODEL</label>
+          <input type="text" id="addEqModel" class="form-control" style="width: 100%;" placeholder="e.g. PC200-8, CAT 320">
+        </div>
+
+        <div class="form-group">
+          <label>METER TYPE</label>
+          <select id="addEqMeterType" class="form-control" style="width: 100%;">
+            <option value="SMR">SMR (Hours)</option>
+            <option value="KM">KM (Odometer)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>PMS INTERVAL</label>
+          <input type="number" id="addEqInterval" class="form-control" style="width: 100%;" value="500">
+        </div>
+
+        <div class="form-group">
+          <label>INITIAL CURRENT READING</label>
+          <input type="number" id="addEqCurrentReading" class="form-control" style="width: 100%;" value="0">
+        </div>
+
+        <div class="form-group">
+          <label>INITIAL LOCATION</label>
+          <input type="text" id="addEqLocation" class="form-control" style="width: 100%;" placeholder="Site Name">
+        </div>
+
+        <div class="form-group">
+          <label>INITIAL REGION</label>
+          <input type="text" id="addEqRegion" class="form-control" style="width: 100%;" placeholder="Region Name">
+        </div>
+
+        <div class="form-group">
+          <label>INITIAL STATUS</label>
+          <select id="addEqStatus" class="form-control" style="width: 100%;">
+            <option value="OPERATIONAL">OPERATIONAL</option>
+            <option value="STANDBY">STANDBY</option>
+            <option value="REHAB">REHAB</option>
+            <option value="BREAKDOWN">BREAKDOWN</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline btn-sm" onclick="closeModal('addEquipmentModal')">Cancel</button>
+        <button class="btn btn-primary btn-sm" onclick="saveNewEquipment()">Save New Equipment</button>
       </div>
     </div>
   </div>
@@ -689,31 +867,44 @@
         if (lblUser) lblUser.textContent = currentUserName;
       }
 
+      // Fleet module 'Add Equipment' button is only enabled for Admin
+      const addEqBtn = document.getElementById("btnAddEquipmentBtn");
+      if (addEqBtn) {
+        addEqBtn.disabled = (currentUserRole !== "admin");
+        addEqBtn.style.opacity = (currentUserRole !== "admin") ? "0.5" : "1";
+        addEqBtn.style.cursor = (currentUserRole !== "admin") ? "not-allowed" : "pointer";
+      }
+
       // Refresh currently open views with updated controls
       renderTable();
       renderLogMatrix();
+      renderFleetTable();
     }
 
     function switchView(view) {
       const pmsView = document.getElementById("pmsModuleView");
       const logsView = document.getElementById("logsModuleView");
       const calView = document.getElementById("calendarModuleView");
+      const fleetView = document.getElementById("fleetModuleView");
 
       const navPms = document.getElementById("nav-pms");
       const navLogs = document.getElementById("nav-logs");
       const navCal = document.getElementById("nav-calendar");
+      const navFleet = document.getElementById("nav-fleet");
 
       const title = document.getElementById("mainHeaderTitle");
 
-      if (!pmsView || !logsView || !calView) return;
+      if (!pmsView || !logsView || !calView || !fleetView) return;
 
       pmsView.style.display = "none";
       logsView.style.display = "none";
       calView.style.display = "none";
+      fleetView.style.display = "none";
 
       if (navPms) navPms.classList.remove("active");
       if (navLogs) navLogs.classList.remove("active");
       if (navCal) navCal.classList.remove("active");
+      if (navFleet) navFleet.classList.remove("active");
 
       if (view === 'pms') {
         pmsView.style.display = "block";
@@ -729,6 +920,11 @@
         if (navCal) navCal.classList.add("active");
         if (title) title.textContent = "PMS Calendar (Saturday Start)";
         renderCalendarMatrix();
+      } else if (view === 'fleet') {
+        fleetView.style.display = "block";
+        if (navFleet) navFleet.classList.add("active");
+        if (title) title.textContent = "Fleet Master Register & Location Management";
+        filterFleetData();
       }
     }
 
@@ -739,7 +935,7 @@
     if (window.supabase) {
       window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     }
-    supabase = window.supabaseClient;
+     supabase = window.supabaseClient;
 
     let fleetDatabase = [];
     let currentFilteredData = [];
@@ -751,6 +947,12 @@
     let calendarStartWeekOffset = 0; 
     let calCurrentPage = 1;
     const calItemsPerPage = 20;
+
+    // Fleet Info Module state
+    let currentFleetFilteredData = [];
+    let fleetCurrentPage = 1;
+    const fleetItemsPerPage = 20;
+    let currentSelectedFleetUnit = null;
 
     let currentSelectedUnit = null;
 
@@ -801,6 +1003,20 @@
           .order('equipment_id', { ascending: true });
 
         if (eqError) throw eqError;
+
+        // Fetch location data from equipment_locations db table
+        const { data: locationData, error: locError } = await supabase
+          .from('equipment_locations')
+          .select('*');
+
+        if (locError) console.warn("Notice: Could not load equipment_locations table yet.", locError.message);
+
+        const locationMap = {};
+        if (locationData) {
+          locationData.forEach(loc => {
+            locationMap[loc.equipment_id] = loc;
+          });
+        }
 
         const { data: logData, error: logError } = await supabase
           .from('daily_logs')
@@ -853,6 +1069,7 @@
             : parseFloat(item.current_reading) || 0;
 
           const lastPms = latestPmsMap[eqId] || {};
+          const locInfo = locationMap[eqId] || {};
 
           return {
             equipment_id: eqId,
@@ -864,6 +1081,8 @@
             reading_date: latestDateStr || 'Initial',
             avg_daily_usage: parseFloat(item.avg_daily_usage) || 6.5,
             equipment_status: item.equipment_status || 'OPERATIONAL',
+            location: locInfo.location || item.location || 'Unassigned',
+            region: locInfo.region || item.region || 'Unassigned',
             last_service_date: lastPms.service_date || 'N/A',
             last_service_reading: parseFloat(lastPms.service_reading) || 0,
             next_pms_type: lastPms.pms_type || (item.meter_type === 'KM' ? '10,000 KM' : 'PM 500')
@@ -875,6 +1094,7 @@
 
         populateGroupDropdowns();
         filterData();
+        filterFleetData();
 
       } catch (err) {
         console.error('Error fetching data:', err.message);
@@ -899,16 +1119,19 @@
       const groupSelect = document.getElementById("groupFilter");
       const logsGroupSelect = document.getElementById("logsGroupFilter");
       const calGroupSelect = document.getElementById("calGroupFilter");
+      const fleetGroupSelect = document.getElementById("fleetGroupFilter");
 
       if (groupSelect) groupSelect.innerHTML = `<option value="ALL">All Equipment Groups</option>`;
       if (logsGroupSelect) logsGroupSelect.innerHTML = `<option value="ALL">All Equipment Groups</option>`;
       if (calGroupSelect) calGroupSelect.innerHTML = `<option value="ALL">All Equipment Groups</option>`;
+      if (fleetGroupSelect) fleetGroupSelect.innerHTML = `<option value="ALL">All Equipment Groups</option>`;
 
       Array.from(prefixes).sort().forEach(prefix => {
         const optHtml = `<option value="${prefix}">${prefix} Series</option>`;
         if (groupSelect) groupSelect.insertAdjacentHTML('beforeend', optHtml);
         if (logsGroupSelect) logsGroupSelect.insertAdjacentHTML('beforeend', optHtml);
         if (calGroupSelect) calGroupSelect.insertAdjacentHTML('beforeend', optHtml);
+        if (fleetGroupSelect) fleetGroupSelect.insertAdjacentHTML('beforeend', optHtml);
       });
     }
 
@@ -1030,7 +1253,6 @@
         if (item.equipment_status === "REHAB") eqStatusClass = "badge-amber";
         if (item.equipment_status === "BREAKDOWN") eqStatusClass = "badge-red";
 
-        // Disable 'Update' action button if Guest
         const actionBtnDisabled = currentUserRole === 'guest' ? 'disabled' : '';
 
         const tr = document.createElement("tr");
@@ -1281,7 +1503,7 @@
       document.getElementById("calPaginationInfo").textContent = `Showing ${startIndex + 1}-${endIndex} of ${totalCalItems} equipment`;
       document.getElementById("calPageIndicator").textContent = `Page ${calCurrentPage} of ${totalCalPages}`;
       document.getElementById("btnCalPrevPage").disabled = calCurrentPage === 1;
-      document.getElementById("btnCalNextPage").disabled = calCalNextPage === totalCalPages;
+      document.getElementById("btnCalNextPage").disabled = calCurrentPage === totalCalPages;
     }
 
     function changeCalPage(direction) {
@@ -1369,6 +1591,277 @@
       document.body.removeChild(link);
     }
 
+    // --- FLEET INFORMATION MODULE LOGIC ---
+    function filterFleetData() {
+      const groupVal = document.getElementById("fleetGroupFilter") ? document.getElementById("fleetGroupFilter").value : "ALL";
+      const searchVal = document.getElementById("fleetSearchInput") ? document.getElementById("fleetSearchInput").value.toLowerCase() : "";
+
+      currentFleetFilteredData = fleetDatabase.filter(item => {
+        const matchesGroup = groupVal === "ALL" || item.equipment_id.toUpperCase().startsWith(groupVal);
+        const matchesSearch = item.equipment_id.toLowerCase().includes(searchVal) ||
+                              item.brand.toLowerCase().includes(searchVal) ||
+                              item.model.toLowerCase().includes(searchVal) ||
+                              item.location.toLowerCase().includes(searchVal) ||
+                              item.region.toLowerCase().includes(searchVal);
+
+        return matchesGroup && matchesSearch;
+      });
+
+      fleetCurrentPage = 1;
+      renderFleetTable();
+    }
+
+    function renderFleetTable() {
+      const tbody = document.getElementById("fleetTableBody");
+      if (!tbody) return;
+      tbody.innerHTML = "";
+
+      const totalItems = currentFleetFilteredData.length;
+      const totalPages = Math.ceil(totalItems / fleetItemsPerPage) || 1;
+
+      if (totalItems === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 12px; color: var(--text-muted);">No fleet records found.</td></tr>`;
+        document.getElementById("fleetPaginationInfo").textContent = "Showing 0 of 0 equipment";
+        document.getElementById("btnFleetPrevPage").disabled = true;
+        document.getElementById("btnFleetNextPage").disabled = true;
+        document.getElementById("fleetPageIndicator").textContent = "Page 1 of 1";
+        return;
+      }
+
+      const startIndex = (fleetCurrentPage - 1) * fleetItemsPerPage;
+      const endIndex = Math.min(startIndex + fleetItemsPerPage, totalItems);
+      const pageData = currentFleetFilteredData.slice(startIndex, endIndex);
+
+      const canEdit = currentUserRole === 'admin' || currentUserRole === 'planner';
+
+      pageData.forEach(item => {
+        let statusBadgeClass = "badge-green";
+        if (item.equipment_status === "REHAB") statusBadgeClass = "badge-amber";
+        if (item.equipment_status === "BREAKDOWN") statusBadgeClass = "badge-red";
+        if (item.equipment_status === "STANDBY") statusBadgeClass = "badge-amber";
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><strong>${item.equipment_id}</strong></td>
+          <td>${item.brand} ${item.model}</td>
+          <td><i class="fa-solid fa-location-dot" style="color: var(--primary-blue); margin-right: 4px;"></i> ${item.location}</td>
+          <td>${item.region}</td>
+          <td><span class="badge ${statusBadgeClass}">${item.equipment_status}</span></td>
+          <td>
+            <button class="btn btn-outline btn-sm" ${canEdit ? '' : 'disabled'} onclick="openEditFleetModal('${item.equipment_id}')">
+              <i class="fa-solid fa-pen-to-square"></i> Edit
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById("fleetPaginationInfo").textContent = `Showing ${startIndex + 1}-${endIndex} of ${totalItems} equipment`;
+      document.getElementById("fleetPageIndicator").textContent = `Page ${fleetCurrentPage} of ${totalPages}`;
+      document.getElementById("btnFleetPrevPage").disabled = fleetCurrentPage === 1;
+      document.getElementById("btnFleetNextPage").disabled = fleetCurrentPage === totalPages;
+    }
+
+    function changeFleetPage(dir) {
+      fleetCurrentPage += dir;
+      renderFleetTable();
+    }
+
+    function openEditFleetModal(equipmentId) {
+      if (currentUserRole === 'guest') return;
+
+      currentSelectedFleetUnit = equipmentId;
+      const item = fleetDatabase.find(a => a.equipment_id === equipmentId);
+      if (!item) return;
+
+      document.getElementById("editFleetUnitDisplay").textContent = `Unit: ${item.equipment_id}`;
+      document.getElementById("editFleetModelDisplay").textContent = `${item.brand} ${item.model}`;
+      document.getElementById("editFleetLocation").value = item.location || '';
+      document.getElementById("editFleetRegion").value = item.region || '';
+      document.getElementById("editFleetStatus").value = item.equipment_status || 'OPERATIONAL';
+
+      document.getElementById("editFleetModal").style.display = "flex";
+    }
+
+    async function saveFleetInfoChanges() {
+      if (!currentSelectedFleetUnit || currentUserRole === 'guest') return;
+
+      const item = fleetDatabase.find(a => a.equipment_id === currentSelectedFleetUnit);
+      if (!item) return;
+
+      const newLoc = document.getElementById("editFleetLocation").value.trim();
+      const newRegion = document.getElementById("editFleetRegion").value.trim();
+      const newStatus = document.getElementById("editFleetStatus").value;
+
+      if (supabase) {
+        try {
+          // Update equipment status in 'equipment' table
+          const { error: eqErr } = await supabase
+            .from('equipment')
+            .update({ equipment_status: newStatus })
+            .eq('equipment_id', currentSelectedFleetUnit);
+
+          if (eqErr) throw eqErr;
+
+          // Upsert location and region in 'equipment_locations' table
+          const { error: locErr } = await supabase
+            .from('equipment_locations')
+            .upsert({
+              equipment_id: currentSelectedFleetUnit,
+              location: newLoc,
+              region: newRegion,
+              updated_at: new Date()
+            }, { onConflict: 'equipment_id' });
+
+          if (locErr) throw locErr;
+
+        } catch (err) {
+          alert("Error saving fleet changes: " + err.message);
+          return;
+        }
+      }
+
+      // Local State Update
+      item.location = newLoc || 'Unassigned';
+      item.region = newRegion || 'Unassigned';
+      item.equipment_status = newStatus;
+
+      renderFleetTable();
+      renderTable(); // Also refresh PMS table status
+      closeModal('editFleetModal');
+    }
+
+    function openAddEquipmentModal() {
+      if (currentUserRole !== 'admin') {
+        alert("Only Administrators can add new equipment.");
+        return;
+      }
+      document.getElementById("addEquipmentModal").style.display = "flex";
+    }
+
+    async function saveNewEquipment() {
+      if (currentUserRole !== 'admin') return;
+
+      const eqId = document.getElementById("addEqId").value.trim().toUpperCase();
+      const brand = document.getElementById("addEqBrand").value.trim();
+      const model = document.getElementById("addEqModel").value.trim();
+      const meterType = document.getElementById("addEqMeterType").value;
+      const interval = parseFloat(document.getElementById("addEqInterval").value) || 500;
+      const currReading = parseFloat(document.getElementById("addEqCurrentReading").value) || 0;
+      const loc = document.getElementById("addEqLocation").value.trim() || 'Unassigned';
+      const region = document.getElementById("addEqRegion").value.trim() || 'Unassigned';
+      const status = document.getElementById("addEqStatus").value;
+
+      if (!eqId || !brand || !model) {
+        alert("Please fill in the Equipment ID, Brand, and Model.");
+        return;
+      }
+
+      const existing = fleetDatabase.find(a => a.equipment_id === eqId);
+      if (existing) {
+        alert(`Equipment ID ${eqId} already exists!`);
+        return;
+      }
+
+      if (supabase) {
+        try {
+          // Insert into equipment table
+          const { error: eqErr } = await supabase
+            .from('equipment')
+            .insert([{
+              equipment_id: eqId,
+              brand,
+              model,
+              meter_type: meterType,
+              pms_interval: interval,
+              current_reading: currReading,
+              equipment_status: status
+            }]);
+
+          if (eqErr) throw eqErr;
+
+          // Insert location into equipment_locations table
+          const { error: locErr } = await supabase
+            .from('equipment_locations')
+            .upsert({
+              equipment_id: eqId,
+              location: loc,
+              region: region,
+              updated_at: new Date()
+            }, { onConflict: 'equipment_id' });
+
+          if (locErr) console.warn("Notice: Location save fallback.", locErr.message);
+
+        } catch (err) {
+          alert("Failed to create new equipment: " + err.message);
+          return;
+        }
+      }
+
+      // Add to local database state
+      fleetDatabase.push({
+        equipment_id: eqId,
+        brand,
+        model,
+        meter_type: meterType,
+        pms_interval: interval,
+        current_reading: currReading,
+        reading_date: 'Initial',
+        avg_daily_usage: 6.5,
+        equipment_status: status,
+        location: loc,
+        region: region,
+        last_service_date: 'N/A',
+        last_service_reading: 0,
+        next_pms_type: meterType === 'KM' ? '10,000 KM' : 'PM 500'
+      });
+
+      populateGroupDropdowns();
+      filterFleetData();
+      filterData();
+      closeModal('addEquipmentModal');
+
+      // Clear Form Fields
+      document.getElementById("addEqId").value = "";
+      document.getElementById("addEqBrand").value = "";
+      document.getElementById("addEqModel").value = "";
+      document.getElementById("addEqLocation").value = "";
+      document.getElementById("addEqRegion").value = "";
+    }
+
+    function exportFleetToExcel() {
+      if (currentFleetFilteredData.length === 0) {
+        alert("No fleet data to export.");
+        return;
+      }
+
+      let csvLines = [];
+      csvLines.push(['Equipment ID', 'Brand', 'Model', 'Meter Type', 'Location', 'Region', 'Status', 'Current Reading'].join(','));
+
+      currentFleetFilteredData.forEach(item => {
+        csvLines.push([
+          `"${item.equipment_id}"`,
+          `"${item.brand}"`,
+          `"${item.model}"`,
+          `"${item.meter_type}"`,
+          `"${item.location}"`,
+          `"${item.region}"`,
+          `"${item.equipment_status}"`,
+          `"${item.current_reading}"`
+        ].join(','));
+      });
+
+      const csvContent = "data:text/csv;charset=utf-8," + csvLines.join("\n");
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `Fleet_Master_Register_${new Date().toISOString().split('T')[0]}.csv`);
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
     function openPmsModal(equipmentId) {
       if (currentUserRole === 'guest') return;
 
@@ -1401,8 +1894,9 @@
       document.getElementById("pmsModal").style.display = "flex";
     }
 
-    function closeModal() {
-      document.getElementById("pmsModal").style.display = "none";
+    function closeModal(modalId) {
+      const modal = document.getElementById(modalId);
+      if (modal) modal.style.display = "none";
     }
 
     async function savePmsRecord() {
@@ -1454,7 +1948,7 @@
       asset.avg_daily_usage = updatedDailyRate;
 
       renderTable();
-      closeModal();
+      closeModal('pmsModal');
     }
 
     window.addEventListener('DOMContentLoaded', () => {

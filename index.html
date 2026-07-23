@@ -181,7 +181,7 @@
     }
     .btn-primary { background-color: var(--primary-blue); color: #fff; }
     .btn-primary:hover { background-color: var(--primary-blue-hover); }
-    .btn-sm { padding: 5px 12px; font-size: 12px; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
     .btn-outline { background: #fff; border: 1px solid var(--border-card); color: var(--text-main); }
     .btn-outline:hover { background: #f1f5f9; }
     .btn-outline:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -350,6 +350,11 @@
             <i class="fa-solid fa-calendar-days" style="color: var(--primary-blue);"></i> PMS Scheduling Table
           </div>
           <div class="filter-group">
+            <!-- Sync Reading Button -->
+            <button class="btn btn-primary btn-sm" onclick="fetchFleetFromDB()" id="btnSync">
+              <i class="fa-solid fa-rotate"></i> Update Reading
+            </button>
+
             <!-- 1. Equipment Group Filter -->
             <select id="groupFilter" class="form-control" onchange="filterData()">
               <option value="ALL">All Equipment Groups</option>
@@ -384,6 +389,7 @@
                 <th>Equipment Status</th>
                 <th>PMS Interval</th>
                 <th>Current Reading</th>
+                <th>Reading Date</th> <!-- Newly Added Column -->
                 <th>Last Service Date</th>
                 <th>Last Service Reading</th>
                 <th>Projected Target</th>
@@ -397,7 +403,7 @@
             </thead>
             <tbody id="assetTableBody">
               <tr>
-                <td colspan="14" style="text-align: center; padding: 24px; color: var(--text-muted);">
+                <td colspan="15" style="text-align: center; padding: 24px; color: var(--text-muted);">
                   <i class="fa-solid fa-spinner fa-spin"></i> Fetching live records from database...
                 </td>
               </tr>
@@ -508,7 +514,6 @@
 
   <!-- ================= APPLICATION SCRIPT ================= -->
   <script>
-    // --- GLOBAL DECLARATIONS AT TOP TO PREVENT ReferenceError ---
     function switchView(view) {
       const pmsView = document.getElementById("pmsModuleView");
       const logsView = document.getElementById("logsModuleView");
@@ -538,11 +543,10 @@
     const SUPABASE_URL = 'https://kndcixcfzwnmvimdfumb.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtuZGNpeGNmendubXZpbWRmdW1iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3NTAxMzcsImV4cCI6MjEwMDMyNjEzN30._JnKGCFhC_f2m7E9tlBpFbxzdahD65d3nL2VI0jgyJE';
     
-    // Safely initialize Supabase
     if (window.supabase) {
       window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     }
-  supabase = window.supabaseClient;
+    supabase = window.supabaseClient;
 
     let fleetDatabase = [];
     let currentFilteredData = [];
@@ -559,9 +563,19 @@
     // 2. FETCH DATA FROM SUPABASE
     async function fetchFleetFromDB() {
       const tbody = document.getElementById("assetTableBody");
+      const syncBtn = document.getElementById("btnSync");
+
+      if (syncBtn) {
+        syncBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Syncing...`;
+        syncBtn.disabled = true;
+      }
 
       if (!supabase) {
-        if (tbody) tbody.innerHTML = `<tr><td colspan="14" style="text-align: center; color: var(--status-amber-text); padding: 20px;"><strong>Configuration Required:</strong> Please enter your <code>SUPABASE_URL</code> and <code>SUPABASE_ANON_KEY</code> in the script tag.</td></tr>`;
+        if (tbody) tbody.innerHTML = `<tr><td colspan="15" style="text-align: center; color: var(--status-amber-text); padding: 20px;"><strong>Configuration Required:</strong> Please enter your <code>SUPABASE_URL</code> and <code>SUPABASE_ANON_KEY</code> in the script tag.</td></tr>`;
+        if (syncBtn) {
+          syncBtn.innerHTML = `<i class="fa-solid fa-rotate"></i> Update Reading`;
+          syncBtn.disabled = false;
+        }
         return;
       }
 
@@ -614,6 +628,7 @@
             meter_type: item.meter_type ? item.meter_type.toUpperCase() : 'SMR',
             pms_interval: parseFloat(item.pms_interval) || 500,
             current_reading: currentReading,
+            reading_date: latestDateStr || 'Initial', // Dynamically tracks reading date
             avg_daily_usage: parseFloat(item.avg_daily_usage) || 6.5,
             equipment_status: item.equipment_status || 'OPERATIONAL',
             last_service_date: item.last_service_date || new Date().toISOString().split('T')[0],
@@ -633,15 +648,19 @@
         if (tbody) {
           tbody.innerHTML = `
             <tr>
-              <td colspan="14" style="text-align: center; color: red; padding: 20px;">
+              <td colspan="15" style="text-align: center; color: red; padding: 20px;">
                 <strong>Error Loading Data:</strong> ${err.message}
               </td>
             </tr>`;
         }
+      } finally {
+        if (syncBtn) {
+          syncBtn.innerHTML = `<i class="fa-solid fa-rotate"></i> Update Reading`;
+          syncBtn.disabled = false;
+        }
       }
     }
 
-    // Populate Group Filter Options dynamically (BD, BH, DT, etc.)
     function populateGroupDropdowns() {
       const prefixes = new Set();
       fleetDatabase.forEach(item => {
@@ -707,7 +726,6 @@
       return { ...asset, projectedTarget, unitsLeft, daysLeft, targetDate, pmsStatus, unitLabel };
     }
 
-    // Filter Logic
     function filterData() {
       const groupVal = document.getElementById("groupFilter") ? document.getElementById("groupFilter").value : "ALL";
       const searchVal = document.getElementById("searchInput") ? document.getElementById("searchInput").value.toLowerCase() : "";
@@ -745,7 +763,6 @@
       document.getElementById("kpi-notyet").textContent = notYetCount;
     }
 
-    // 3. RENDER PMS TABLE WITH 20-ITEM PAGINATION
     function renderTable() {
       const tbody = document.getElementById("assetTableBody");
       if (!tbody) return;
@@ -755,7 +772,7 @@
       const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
 
       if (totalItems === 0) {
-        tbody.innerHTML = `<tr><td colspan="14" style="text-align: center; padding: 20px; color: var(--text-muted);">No equipment found matching criteria.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="15" style="text-align: center; padding: 20px; color: var(--text-muted);">No equipment found matching criteria.</td></tr>`;
         document.getElementById("paginationInfo").textContent = "Showing 0 of 0 equipment";
         document.getElementById("btnPrevPage").disabled = true;
         document.getElementById("btnNextPage").disabled = true;
@@ -785,6 +802,7 @@
           <td><span class="badge ${eqStatusClass}">${item.equipment_status}</span></td>
           <td>${item.pms_interval.toLocaleString()} ${item.unitLabel}</td>
           <td><strong>${item.current_reading.toLocaleString()} ${item.unitLabel}</strong></td>
+          <td><span style="color: var(--text-muted); font-size: 12px;">${item.reading_date}</span></td>
           <td>${item.last_service_date || 'N/A'}</td>
           <td>${item.last_service_reading.toLocaleString()} ${item.unitLabel}</td>
           <td><strong>${item.projectedTarget.toLocaleString()}</strong></td>
@@ -813,7 +831,6 @@
       renderTable();
     }
 
-    // 4. RENDER DAILY SMR / KM MATRIX TABLE
     function renderLogMatrix() {
       const headerRow = document.getElementById("logTableHeaderRow");
       const tbody = document.getElementById("logTableBody");
@@ -868,7 +885,6 @@
       });
     }
 
-    // 5. SAVE LOG ENTRY & AUTOMATICALLY SYNC CURRENT READING
     async function saveDailyLog(equipmentId, logDate, value) {
       const numericVal = parseFloat(value);
       const logKey = `${equipmentId}_${logDate}`;
@@ -895,6 +911,7 @@
       const asset = fleetDatabase.find(a => a.equipment_id === equipmentId);
       if (asset && latestReading !== null) {
         asset.current_reading = latestReading;
+        asset.reading_date = latestDateStr;
       }
 
       if (supabase) {

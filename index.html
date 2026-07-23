@@ -1,1 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PMS Scheduling System</title>
+  <!-- Google Fonts & FontAwesome Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    /* --- LIGHT COLOR PALETTE & RESET --- */
+    :root {
+      --bg-sidebar: #f0f3f6;
+      --border-sidebar: #dcdfe4;
+      --bg-main: #f8fafc;
+      --bg-card: #ffffff;
+      --border-card: #e2e8f0;
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --text-sidebar: #475569;
+      --primary-blue: #2563eb;
+      --primary-blue-hover: #1d4ed8;
+      --light-blue-bg: #eff6ff;
+      --light-blue-border: #bfdbfe;
+      --status-green-bg: #dcfce7;
+      --status-green-text: #166534;
+      --status-amber-bg: #fef3c7;
+      --status-amber-text: #92400e;
+      --status-red-bg: #fee2e2;
+      --status-red-text: #991b1b;
+    }
 
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+    body { display: flex; height: 100vh; background-color: var(--bg-main); color: var(--text-main); overflow: hidden; }
+
+    /* --- 20% LEFT SIDEBAR --- */
+    .sidebar {
+      width: 20%;
+      min-width: 240px;
+      background-color: var(--bg-sidebar);
+      border-right: 1px solid var(--border-sidebar);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .brand-header {
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--border-sidebar);
+    }
+    .brand-header i { font-size: 24px; color: var(--primary-blue); }
+    .brand-header h1 { font-size: 16px; font-weight: 700; color: var(--text-main); }
+
+    .nav-list { list-style: none; padding: 16px 12px; }
+    .nav-section-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 16px 8px 8px 8px;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      border-radius: 6px;
+      color: var(--text-sidebar);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-bottom: 4px;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+    .nav-item:hover { background-color: #e2e8f0; }
+    .nav-item.disabled { opacity: 0.5; cursor: not-allowed; }
+    .nav-item.active {
+      background-color: var(--light-blue-bg);
+      color: var(--primary-blue);
+      font-weight: 600;
+      border: 1px solid var(--light-blue-border);
+    }
+
+    .sidebar-footer {
+      padding: 16px;
+      border-top: 1px solid var(--border-sidebar);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* --- 80% RIGHT MAIN DISPLAY --- */
+    .main-content {
+      width: 80%;
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .top-header {
+      background-color: #ffffff;
+      padding: 16px 28px;
+      border-bottom: 1px solid var(--border-card);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .top-header h2 { font-size: 20px; font-weight: 700; }
+
+    .content-container { padding: 24px 28px; }
+
+    /* KPI Cards */
+    .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+    .kpi-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: 8px;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+    .kpi-title { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; }
+    .kpi-value { font-size: 24px; font-weight: 700; margin-top: 4px; }
+    .kpi-card.red .kpi-value { color: var(--status-red-text); }
+    .kpi-card.amber .kpi-value { color: var(--status-amber-text); }
+    .kpi-card.green .kpi-value { color: var(--status-green-text); }
+
+    /* Table Container & Filter Bar */
+    .panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+    .panel-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-card);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .filter-group { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .form-control {
+      padding: 8px 12px;
+      font-size: 13px;
+      border: 1px solid var(--border-card);
+      border-radius: 6px;
+      background-color: #fff;
+      color: var(--text-main);
+      outline: none;
+    }
+    .form-control:focus { border-color: var(--primary-blue); }
+
+    .btn {
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.2s ease;
+    }
+    .btn-primary { background-color: var(--primary-blue); color: #fff; }
+    .btn-primary:hover { background-color: var(--primary-blue-hover); }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    .btn-outline { background: #fff; border: 1px solid var(--border-card); color: var(--text-main); }
+    .btn-outline:hover { background: #f1f5f9; }
+
+    /* Data Table */
+    .table-responsive { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+    th {
+      background-color: #f8fafc;
+      color: var(--text-muted);
+      font-weight: 600;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border-card);
+      white-space: nowrap;
+    }
+    td { padding: 12px 14px; border-bottom: 1px solid var(--border-card); vertical-align: middle; white-space: nowrap; }
+    tbody tr:hover { background-color: #f8fafc; }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .badge-green { background: var(--status-green-bg); color: var(--status-green-text); }
+    .badge-amber { background: var(--status-amber-bg); color: var(--status-amber-text); }
+    .badge-red { background: var(--status-red-bg); color: var(--status-red-text); }
+
+    /* MODAL */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.3); display: none; justify-content: center; align-items: center; z-index: 1000;
+    }
+    .modal {
+      background: #fff; border-radius: 8px; width: 450px; padding: 24px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 1px solid var(--border-card);
+    }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .modal-header h3 { font-size: 16px; font-weight: 700; }
+    .modal-close { cursor: pointer; color: var(--text-muted); font-size: 18px; }
+    .modal-body .form-group { margin-bottom: 14px; }
+    .modal-body label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+  </style>
+</head>
+<body>
+
+  <!-- ================= 20% LEFT SIDEBAR ================= -->
+  <aside class="sidebar">
+    <div>
+      <div class="brand-header">
+        <i class="fa-solid fa-truck-monster"></i>
+        <h1>PMS Engine</h1>
+      </div>
+
+      <ul class="nav-list">
+        <div class="nav-section-title">Compliance</div>
+        <li>
+          <a class="nav-item disabled">
+            <i class="fa-solid fa-chart-pie"></i>
+            <span>Compliance Dashboard</span>
+          </a>
+        </li>
+
+        <div class="nav-section-title">Maintenance</div>
+        <li>
+          <a class="nav-item active">
+            <i class="fa-solid fa-calendar-check"></i>
+            <span>PMS Scheduling</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <div class="sidebar-footer">
+      <strong>Fleet & Heavy Equipment</strong><br>
+      <span>871 Total Managed Assets</span>
+    </div>
+  </aside>
+
+  <!-- ================= 80% RIGHT DISPLAY ================= -->
+  <main class="main-content">
+    <header class="top-header">
+      <h2>PMS Scheduling</h2>
+      <button class="btn btn-primary" onclick="openModal()">
+        <i class="fa-solid fa-plus"></i> Log Meter Reading
+      </button>
+    </header>
+
+    <div class="content-container">
+      
+      <!-- Top Summary Cards -->
+      <div class="kpi-grid">
+        <div class="kpi-card red">
+          <div>
+            <div class="kpi-title">Overdue</div>
+            <div class="kpi-value" id="kpi-overdue">2</div>
+          </div>
+          <i class="fa-solid fa-triangle-exclamation fa-2x" style="color: var(--status-red-text);"></i>
+        </div>
+
+        <div class="kpi-card amber">
+          <div>
+            <div class="kpi-title">Schedule Me (&le; 9 Days)</div>
+            <div class="kpi-value" id="kpi-schedule">6</div>
+          </div>
+          <i class="fa-solid fa-clock-rotate-left fa-2x" style="color: var(--status-amber-text);"></i>
+        </div>
+
+        <div class="kpi-card green">
+          <div>
+            <div class="kpi-title">Not Yet (On Track)</div>
+            <div class="kpi-value" id="kpi-notyet">863</div>
+          </div>
+          <i class="fa-solid fa-circle-check fa-2x" style="color: var(--status-green-text);"></i>
+        </div>
+      </div>
+
+      <!-- Main Table Panel -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="filter-group">
+            <input type="text" id="searchInput" class="form-control" placeholder="Search Unit No, Model..." onkeyup="filterData()" style="width: 220px;">
+            
+            <select id="typeFilter" class="form-control" onchange="filterData()">
+              <option value="ALL">All Meters (SMR & KM)</option>
+              <option value="SMR">SMR (Hours)</option>
+              <option value="KM">KM (Odometer)</option>
+            </select>
+
+            <select id="statusFilter" class="form-control" onchange="filterData()">
+              <option value="ALL">All PMS Statuses</option>
+              <option value="OVERDUE">🔴 OVERDUE</option>
+              <option value="SCHEDULE ME">🟧 SCHEDULE ME</option>
+              <option value="NOT YET">🟢 NOT YET</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Unit No</th>
+                <th>Brand & Model</th>
+                <th>Location</th>
+                <th>Equipment Status</th>
+                <th>PMS Interval</th>
+                <th>Current Reading</th>
+                <th>Last Service</th>
+                <th>Projected Target</th>
+                <th>Units Left</th>
+                <th>Daily Usage</th>
+                <th>Days Left</th>
+                <th>Target Date</th>
+                <th>PMS Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="assetTableBody">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ================= LOG METER MODAL ================= -->
+  <div class="modal-overlay" id="meterModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Log Meter Reading</h3>
+        <i class="fa-solid fa-xmark modal-close" onclick="closeModal()"></i>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Select Asset</label>
+          <select id="modalAssetSelect" class="form-control" style="width: 100%;" onchange="loadAssetModalDetails()">
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+        <div class="form-group">
+          <label>New Meter Reading (SMR / KM)</label>
+          <input type="number" id="modalNewReading" class="form-control" style="width: 100%;" placeholder="Enter updated reading">
+        </div>
+        <div class="form-group">
+          <label>Average Daily Usage (Hours / KM per day)</label>
+          <input type="number" id="modalDailyRate" class="form-control" style="width: 100%;" placeholder="Daily rate">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveMeterLog()">Save Log</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= FRONTEND LOGIC & DEMO DATA ================= -->
+  <script>
+    // Sample Dataset reflecting your CSV scans
+    const assetsData = [
+      { unitNo: "BD-16", brand: "CAT D6R2", location: "Gem Motorpool", eqStatus: "OPERATIONAL", type: "SMR", interval: 500, current: 12459, lastService: 12459, daily: 6.5 },
+      { unitNo: "EX-04", brand: "Komatsu PC200", location: "Site Alpha", eqStatus: "OPERATIONAL", type: "SMR", interval: 250, current: 4810, lastService: 4550, daily: 8.0 },
+      { unitNo: "DT-12", brand: "ISUZU Dump Truck", location: "Site Beta", eqStatus: "OPERATIONAL", type: "KM", interval: 5000, current: 94800, lastService: 90000, daily: 40.0 },
+      { unitNo: "BT-03", brand: "FUSO FK41K", location: "Makilos", eqStatus: "OPERATIONAL", type: "KM", interval: 5000, current: 84200, lastService: 80000, daily: 45.0 },
+      { unitNo: "BD-09", brand: "Komatsu D85EX", location: "Los Amigos", eqStatus: "REHAB", type: "SMR", interval: 500, current: 8200, lastService: 8000, daily: 0.0 }
+    ];
+
+    // Calculate Business Rules (Skipping Sundays for Date)
+    function addWorkingDays(startDate, days) {
+      let currentDate = new Date(startDate);
+      let addedDays = 0;
+      let count = Math.ceil(days);
+      if (count <= 0) return "Immediate";
+
+      while (addedDays < count) {
+        currentDate.setDate(currentDate.getDate() + 1);
+        if (currentDate.getDay() !== 0) { // 0 = Sunday
+          addedDays++;
+        }
+      }
+      return currentDate.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+    }
+
+    function computeAsset(asset) {
+      const projectedTarget = asset.lastService + asset.interval;
+      const unitsLeft = projectedTarget - asset.current;
+      const daysLeft = asset.daily > 0 ? Math.round(unitsLeft / asset.daily) : (unitsLeft <= 0 ? -1 : 999);
+      
+      let pmsStatus = "NOT YET";
+      if (daysLeft < 0 || unitsLeft < 0) {
+        pmsStatus = "OVERDUE";
+      } else if (daysLeft <= 9) {
+        pmsStatus = "SCHEDULE ME";
+      }
+
+      const targetDate = addWorkingDays(new Date(), daysLeft);
+      const unitLabel = asset.type === "SMR" ? "hrs" : "km";
+
+      return { ...asset, projectedTarget, unitsLeft, daysLeft, targetDate, pmsStatus, unitLabel };
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById("assetTableBody");
+      tbody.innerHTML = "";
+
+      const computed = assetsData.map(computeAsset);
+
+      computed.forEach(item => {
+        let badgeClass = "badge-green";
+        if (item.pmsStatus === "OVERDUE") badgeClass = "badge-red";
+        if (item.pmsStatus === "SCHEDULE ME") badgeClass = "badge-amber";
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><strong>${item.unitNo}</strong></td>
+          <td>${item.brand}</td>
+          <td>${item.location}</td>
+          <td><span class="badge badge-green">${item.eqStatus}</span></td>
+          <td>${item.interval.toLocaleString()} ${item.unitLabel}</td>
+          <td>${item.current.toLocaleString()} ${item.unitLabel}</td>
+          <td>${item.lastService.toLocaleString()}</td>
+          <td><strong>${item.projectedTarget.toLocaleString()}</strong></td>
+          <td style="color: ${item.unitsLeft < 0 ? 'red' : 'inherit'}">${item.unitsLeft.toLocaleString()} ${item.unitLabel}</td>
+          <td>${item.daily} ${item.unitLabel}/day</td>
+          <td><strong>${item.daysLeft < 0 ? item.daysLeft : item.daysLeft}</strong></td>
+          <td>${item.targetDate}</td>
+          <td><span class="badge ${badgeClass}">${item.pmsStatus}</span></td>
+          <td>
+            <button class="btn btn-outline btn-sm" onclick="openModal('${item.unitNo}')">
+              <i class="fa-solid fa-pen-to-square"></i> Log
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function openModal(unitNo = "") {
+      const select = document.getElementById("modalAssetSelect");
+      select.innerHTML = "";
+      assetsData.forEach(a => {
+        const opt = document.createElement("option");
+        opt.value = a.unitNo;
+        opt.textContent = `${a.unitNo} - ${a.brand}`;
+        if (a.unitNo === unitNo) opt.selected = true;
+        select.appendChild(opt);
+      });
+      loadAssetModalDetails();
+      document.getElementById("meterModal").style.display = "flex";
+    }
+
+    function closeModal() {
+      document.getElementById("meterModal").style.display = "none";
+    }
+
+    function loadAssetModalDetails() {
+      const selectedUnit = document.getElementById("modalAssetSelect").value;
+      const asset = assetsData.find(a => a.unitNo === selectedUnit);
+      if (asset) {
+        document.getElementById("modalNewReading").value = asset.current;
+        document.getElementById("modalDailyRate").value = asset.daily;
+      }
+    }
+
+    function saveMeterLog() {
+      const selectedUnit = document.getElementById("modalAssetSelect").value;
+      const newReading = parseFloat(document.getElementById("modalNewReading").value);
+      const newDaily = parseFloat(document.getElementById("modalDailyRate").value);
+
+      const asset = assetsData.find(a => a.unitNo === selectedUnit);
+      if (asset) {
+        asset.current = newReading;
+        asset.daily = newDaily;
+        renderTable();
+        closeModal();
+      }
+    }
+
+    // Initialize Page
+    renderTable();
+  </script>
+</body>
+</html>

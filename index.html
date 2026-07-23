@@ -205,6 +205,7 @@
     .badge-green { background: var(--status-green-bg); color: var(--status-green-text); }
     .badge-amber { background: var(--status-amber-bg); color: var(--status-amber-text); }
     .badge-red { background: var(--status-red-bg); color: var(--status-red-text); }
+    .badge-gray { background: #e2e8f0; color: #475569; }
 
     /* MODAL */
     .modal-overlay {
@@ -272,7 +273,7 @@
 
     <div class="sidebar-footer">
       <strong>Fleet & Heavy Equipment</strong><br>
-      <span>871 Total Managed Assets</span>
+      <span id="footerTotalAssets">548 Total Managed Assets</span>
     </div>
   </aside>
 
@@ -336,9 +337,8 @@
           <table>
             <thead>
               <tr>
-                <th>Unit No</th>
+                <th>Equipment ID</th>
                 <th>Brand & Model</th>
-                <th>Location</th>
                 <th>Equipment Status</th>
                 <th>PMS Interval</th>
                 <th>Current Reading</th>
@@ -354,7 +354,7 @@
               </tr>
             </thead>
             <tbody id="assetTableBody">
-              <!-- Rendered dynamically -->
+              <!-- Rendered dynamically from database records -->
             </tbody>
           </table>
         </div>
@@ -390,7 +390,7 @@
         <div class="form-group">
           <label>NEXT PMS TYPE</label>
           <select id="modalNextPmsType" class="form-control" style="width: 100%;">
-            <!-- Dynamically loaded based on SMR vs KM -->
+            <!-- Dynamically populated -->
           </select>
         </div>
 
@@ -407,20 +407,26 @@
     </div>
   </div>
 
-  <!-- ================= FRONTEND LOGIC & DEMO DATA ================= -->
+  <!-- ================= FRONTEND LOGIC & DB INTEGRATION ================= -->
   <script>
     let currentSelectedUnit = null;
 
-    // Sample Dataset derived from your SMR & KM sheets
-    const assetsData = [
-      { unitNo: "BD-16", brand: "CAT D6R2", location: "Gem Motorpool", eqStatus: "OPERATIONAL", type: "SMR", interval: 500, current: 12459, lastDate: "2026-06-10", lastService: 12459, nextPmsType: "PM 1000", daily: 6.5 },
-      { unitNo: "EX-04", brand: "Komatsu PC200", location: "Site Alpha", eqStatus: "OPERATIONAL", type: "SMR", interval: 250, current: 4810, lastDate: "2026-05-15", lastService: 4550, nextPmsType: "PM 500", daily: 8.0 },
-      { unitNo: "DT-12", brand: "ISUZU Dump Truck", location: "Site Beta", eqStatus: "OPERATIONAL", type: "KM", interval: 5000, current: 94800, lastDate: "2026-04-20", lastService: 90000, nextPmsType: "10,000 KM", daily: 40.0 },
-      { unitNo: "BT-03", brand: "FUSO FK41K", location: "Makilos", eqStatus: "OPERATIONAL", type: "KM", interval: 5000, current: 84200, lastDate: "2026-03-10", lastService: 80000, nextPmsType: "5,000 KM", daily: 45.0 },
-      { unitNo: "BD-09", brand: "Komatsu D85EX", location: "Los Amigos", eqStatus: "REHAB", type: "SMR", interval: 500, current: 8200, lastDate: "2026-01-10", lastService: 8000, nextPmsType: "PM 500", daily: 0.0 }
+    // Database structure matching your uploaded table: equipment_id (VARCHAR), brand, model, meter_type, etc.
+    const fleetDatabase = [
+      { equipment_id: "BD-10", brand: "KOMATSU", model: "D85EX", meter_type: "SMR", pms_interval: 500, current_reading: 0, avg_daily_usage: 6.5, equipment_status: "REHAB", last_service_date: "2026-01-15", last_service_reading: 0, next_pms_type: "PM 500" },
+      { equipment_id: "BD-14", brand: "CATERPILLAR", model: "D7R11", meter_type: "SMR", pms_interval: 500, current_reading: 0, avg_daily_usage: 6.5, equipment_status: "REHAB", last_service_date: "2026-02-01", last_service_reading: 0, next_pms_type: "PM 500" },
+      { equipment_id: "BD-16", brand: "CATERPILLAR", model: "D6R2", meter_type: "SMR", pms_interval: 500, current_reading: 12459, avg_daily_usage: 6.5, equipment_status: "OPERATIONAL", last_service_date: "2026-06-10", last_service_reading: 12459, next_pms_type: "PM 1000" },
+      { equipment_id: "BD-17", brand: "CATERPILLAR", model: "D6R2", meter_type: "SMR", pms_interval: 500, current_reading: 10118, avg_daily_usage: 6.5, equipment_status: "REHAB", last_service_date: "2026-05-12", last_service_reading: 10000, next_pms_type: "PM 500" },
+      { equipment_id: "BD-18", brand: "CATERPILLAR", model: "D6R2", meter_type: "SMR", pms_interval: 500, current_reading: 9335, avg_daily_usage: 6.5, equipment_status: "OPERATIONAL", last_service_date: "2026-06-01", last_service_reading: 9000, next_pms_type: "PM 500" },
+      { equipment_id: "BD-20", brand: "CATERPILLAR", model: "D7R11", meter_type: "SMR", pms_interval: 500, current_reading: 11303, avg_daily_usage: 6.5, equipment_status: "OPERATIONAL", last_service_date: "2026-04-18", last_service_reading: 11000, next_pms_type: "PM 500" },
+      { equipment_id: "BD-21", brand: "CATERPILLAR", model: "D7R11", meter_type: "SMR", pms_interval: 500, current_reading: 6294, avg_daily_usage: 6.5, equipment_status: "OPERATIONAL", last_service_date: "2026-03-22", last_service_reading: 6000, next_pms_type: "PM 500" },
+      { equipment_id: "BD-22", brand: "KOMATSU", model: "D155", meter_type: "SMR", pms_interval: 500, current_reading: 6610, avg_daily_usage: 6.5, equipment_status: "OPERATIONAL", last_service_date: "2026-05-30", last_service_reading: 6500, next_pms_type: "PM 500" },
+      { equipment_id: "BD-23", brand: "KOMATSU", model: "D155", meter_type: "SMR", pms_interval: 500, current_reading: 7126, avg_daily_usage: 6.5, equipment_status: "OPERATIONAL", last_service_date: "2026-05-10", last_service_reading: 7000, next_pms_type: "PM 500" },
+      { equipment_id: "BD-26", brand: "SHANTUI", model: "SD22", meter_type: "SMR", pms_interval: 500, current_reading: 6638, avg_daily_usage: 6.5, equipment_status: "OPERATIONAL", last_service_date: "2026-04-05", last_service_reading: 6500, next_pms_type: "PM 500" },
+      { equipment_id: "BD-27", brand: "CATERPILLAR", model: "D6R2", meter_type: "SMR", pms_interval: 500, current_reading: 9250, avg_daily_usage: 6.5, equipment_status: "OPERATIONAL", last_service_date: "2026-06-15", last_service_reading: 9000, next_pms_type: "PM 500" }
     ];
 
-    // Calculate Working Days skipping Sundays
+    // Working days calculator excluding Sundays
     function addWorkingDays(startDate, days) {
       let currentDate = new Date(startDate);
       let addedDays = 0;
@@ -437,9 +443,14 @@
     }
 
     function computeAsset(asset) {
-      const projectedTarget = asset.lastService + asset.interval;
-      const unitsLeft = projectedTarget - asset.current;
-      const daysLeft = asset.daily > 0 ? Math.round(unitsLeft / asset.daily) : (unitsLeft <= 0 ? -1 : 999);
+      const lastService = asset.last_service_reading || 0;
+      const interval = asset.pms_interval || 500;
+      const current = asset.current_reading || 0;
+      const daily = asset.avg_daily_usage || 0;
+
+      const projectedTarget = lastService + interval;
+      const unitsLeft = projectedTarget - current;
+      const daysLeft = daily > 0 ? Math.round(unitsLeft / daily) : (unitsLeft <= 0 ? -1 : 999);
       
       let pmsStatus = "NOT YET";
       if (daysLeft < 0 || unitsLeft < 0) {
@@ -449,42 +460,46 @@
       }
 
       const targetDate = addWorkingDays(new Date(), daysLeft);
-      const unitLabel = asset.type === "SMR" ? "hrs" : "km";
+      const unitLabel = asset.meter_type === "SMR" ? "hrs" : "km";
 
       return { ...asset, projectedTarget, unitsLeft, daysLeft, targetDate, pmsStatus, unitLabel };
     }
 
-    function renderTable() {
+    function renderTable(filteredData = fleetDatabase) {
       const tbody = document.getElementById("assetTableBody");
       tbody.innerHTML = "";
 
       let overdueCount = 0, scheduleCount = 0, notYetCount = 0;
-      const computed = assetsData.map(computeAsset);
 
-      computed.forEach(item => {
+      filteredData.forEach(rawAsset => {
+        const item = computeAsset(rawAsset);
+
         let badgeClass = "badge-green";
         if (item.pmsStatus === "OVERDUE") { badgeClass = "badge-red"; overdueCount++; }
         else if (item.pmsStatus === "SCHEDULE ME") { badgeClass = "badge-amber"; scheduleCount++; }
         else { notYetCount++; }
 
+        let eqStatusClass = "badge-green";
+        if (item.equipment_status === "REHAB") eqStatusClass = "badge-amber";
+        if (item.equipment_status === "BREAKDOWN") eqStatusClass = "badge-red";
+
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td><strong>${item.unitNo}</strong></td>
-          <td>${item.brand}</td>
-          <td>${item.location}</td>
-          <td><span class="badge badge-green">${item.eqStatus}</span></td>
-          <td>${item.interval.toLocaleString()} ${item.unitLabel}</td>
-          <td>${item.current.toLocaleString()} ${item.unitLabel}</td>
-          <td>${item.lastDate || 'N/A'}</td>
-          <td>${item.lastService.toLocaleString()} ${item.unitLabel}</td>
+          <td><strong>${item.equipment_id}</strong></td>
+          <td>${item.brand} ${item.model}</td>
+          <td><span class="badge ${eqStatusClass}">${item.equipment_status}</span></td>
+          <td>${item.pms_interval.toLocaleString()} ${item.unitLabel}</td>
+          <td>${item.current_reading.toLocaleString()} ${item.unitLabel}</td>
+          <td>${item.last_service_date || 'N/A'}</td>
+          <td>${item.last_service_reading.toLocaleString()} ${item.unitLabel}</td>
           <td><strong>${item.projectedTarget.toLocaleString()}</strong></td>
           <td style="color: ${item.unitsLeft < 0 ? 'red' : 'inherit'}">${item.unitsLeft.toLocaleString()} ${item.unitLabel}</td>
-          <td>${item.daily} ${item.unitLabel}/day</td>
+          <td>${item.avg_daily_usage} ${item.unitLabel}/day</td>
           <td><strong>${item.daysLeft < 0 ? item.daysLeft : item.daysLeft}</strong></td>
           <td>${item.targetDate}</td>
           <td><span class="badge ${badgeClass}">${item.pmsStatus}</span></td>
           <td>
-            <button class="btn btn-outline btn-sm" onclick="openPmsModal('${item.unitNo}')">
+            <button class="btn btn-outline btn-sm" onclick="openPmsModal('${item.equipment_id}')">
               <i class="fa-solid fa-wrench"></i> Update PMS
             </button>
           </td>
@@ -492,30 +507,49 @@
         tbody.appendChild(tr);
       });
 
-      // Update KPI Counter Summary Cards
+      // Update Top KPI Counters
       document.getElementById("kpi-overdue").textContent = overdueCount;
       document.getElementById("kpi-schedule").textContent = scheduleCount;
       document.getElementById("kpi-notyet").textContent = notYetCount;
     }
 
-    function openPmsModal(unitNo) {
-      currentSelectedUnit = unitNo;
-      const asset = assetsData.find(a => a.unitNo === unitNo);
+    function filterData() {
+      const searchVal = document.getElementById("searchInput").value.toLowerCase();
+      const typeVal = document.getElementById("typeFilter").value;
+      const statusVal = document.getElementById("statusFilter").value;
+
+      const filtered = fleetDatabase.filter(a => {
+        const computed = computeAsset(a);
+        const matchesSearch = a.equipment_id.toLowerCase().includes(searchVal) ||
+                              a.brand.toLowerCase().includes(searchVal) ||
+                              a.model.toLowerCase().includes(searchVal);
+        const matchesType = typeVal === "ALL" || a.meter_type === typeVal;
+        const matchesStatus = statusVal === "ALL" || computed.pmsStatus === statusVal;
+
+        return matchesSearch && matchesType && matchesStatus;
+      });
+
+      renderTable(filtered);
+    }
+
+    function openPmsModal(equipmentId) {
+      currentSelectedUnit = equipmentId;
+      const asset = fleetDatabase.find(a => a.equipment_id === equipmentId);
       if (!asset) return;
 
-      document.getElementById("modalUnitDisplay").textContent = `Unit: ${asset.unitNo} (${asset.brand})`;
-      document.getElementById("modalTypeDisplay").textContent = `Type: ${asset.type}`;
-      document.getElementById("modalSmrLabel").textContent = asset.type === "SMR" ? "SMR DURING PMS" : "ODOMETER DURING PMS";
+      document.getElementById("modalUnitDisplay").textContent = `Equipment ID: ${asset.equipment_id} (${asset.brand} ${asset.model})`;
+      document.getElementById("modalTypeDisplay").textContent = `Meter Type: ${asset.meter_type}`;
+      document.getElementById("modalSmrLabel").textContent = asset.meter_type === "SMR" ? "SMR DURING PMS" : "ODOMETER DURING PMS";
       
-      // Pre-fill fields
+      // Default inputs
       document.getElementById("modalPmsDate").value = new Date().toISOString().split('T')[0];
-      document.getElementById("modalSmrReading").value = asset.current;
-      document.getElementById("modalDailyRate").value = asset.daily;
+      document.getElementById("modalSmrReading").value = asset.current_reading;
+      document.getElementById("modalDailyRate").value = asset.avg_daily_usage;
 
-      // Populate PMS Type Options dynamically
+      // Populate PMS Options
       const typeSelect = document.getElementById("modalNextPmsType");
       typeSelect.innerHTML = "";
-      const pmsOptions = asset.type === "SMR" 
+      const pmsOptions = asset.meter_type === "SMR" 
         ? ["PM 250", "PM 500", "PM 1000", "PM 2000"]
         : ["5,000 KM", "10,000 KM", "20,000 KM", "40,000 KM"];
 
@@ -523,7 +557,7 @@
         const optionEl = document.createElement("option");
         optionEl.value = opt;
         optionEl.textContent = opt;
-        if (opt === asset.nextPmsType) optionEl.selected = true;
+        if (opt === asset.next_pms_type) optionEl.selected = true;
         typeSelect.appendChild(optionEl);
       });
 
@@ -537,29 +571,22 @@
     function savePmsRecord() {
       if (!currentSelectedUnit) return;
       
-      const asset = assetsData.find(a => a.unitNo === currentSelectedUnit);
+      const asset = fleetDatabase.find(a => a.equipment_id === currentSelectedUnit);
       if (asset) {
-        const pmsDate = document.getElementById("modalPmsDate").value;
-        const pmsReading = parseFloat(document.getElementById("modalSmrReading").value);
-        const nextPmsType = document.getElementById("modalNextPmsType").value;
-        const dailyRate = parseFloat(document.getElementById("modalDailyRate").value);
+        asset.last_service_date = document.getElementById("modalPmsDate").value;
+        asset.last_service_reading = parseFloat(document.getElementById("modalSmrReading").value);
+        asset.current_reading = asset.last_service_reading;
+        asset.next_pms_type = document.getElementById("modalNextPmsType").value;
+        asset.avg_daily_usage = parseFloat(document.getElementById("modalDailyRate").value);
 
-        // Update asset baseline to recalculate target schedule
-        asset.lastDate = pmsDate;
-        asset.lastService = pmsReading;
-        asset.current = pmsReading; // Update live meter reading to PMS completion reading
-        asset.nextPmsType = nextPmsType;
-        asset.daily = dailyRate;
-
-        // Auto re-render table and recalculate target schedule
         renderTable();
         closeModal();
       }
     }
 
     function openGeneralLogModal() {
-      if (assetsData.length > 0) {
-        openPmsModal(assetsData[0].unitNo);
+      if (fleetDatabase.length > 0) {
+        openPmsModal(fleetDatabase[0].equipment_id);
       }
     }
 

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PMS Scheduling System</title>
+  <title>PMS Scheduling & SMR/KM Log System</title>
   
   <!-- Google Fonts & FontAwesome Icons -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -33,6 +33,7 @@
       --status-amber-text: #92400e;
       --status-red-bg: #fee2e2;
       --status-red-text: #991b1b;
+      --log-header-bg: #7cb342; /* Excel green theme match */
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
@@ -117,10 +118,10 @@
     }
     .top-header h2 { font-size: 20px; font-weight: 700; }
 
-    .content-container { padding: 24px 28px; }
+    .content-container { padding: 24px 28px; display: flex; flex-direction: column; gap: 24px; }
 
     /* KPI Cards */
-    .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
     .kpi-card {
       background: var(--bg-card);
       border: 1px solid var(--border-card);
@@ -137,7 +138,7 @@
     .kpi-card.amber .kpi-value { color: var(--status-amber-text); }
     .kpi-card.green .kpi-value { color: var(--status-green-text); }
 
-    /* Table Panel & Filter Bar */
+    /* Panel Layouts */
     .panel {
       background: var(--bg-card);
       border: 1px solid var(--border-card);
@@ -153,6 +154,8 @@
       flex-wrap: wrap;
       gap: 12px;
     }
+    .panel-title { font-size: 15px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
+
     .filter-group { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .form-control {
       padding: 8px 12px;
@@ -183,8 +186,8 @@
     .btn-outline { background: #fff; border: 1px solid var(--border-card); color: var(--text-main); }
     .btn-outline:hover { background: #f1f5f9; }
 
-    /* Table */
-    .table-responsive { overflow-x: auto; }
+    /* Table General */
+    .table-responsive { overflow-x: auto; max-width: 100%; }
     table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
     th {
       background-color: #f8fafc;
@@ -194,8 +197,29 @@
       border-bottom: 1px solid var(--border-card);
       white-space: nowrap;
     }
-    td { padding: 12px 14px; border-bottom: 1px solid var(--border-card); vertical-align: middle; white-space: nowrap; }
+    td { padding: 10px 14px; border-bottom: 1px solid var(--border-card); vertical-align: middle; white-space: nowrap; }
     tbody tr:hover { background-color: #f8fafc; }
+
+    /* Matrix Log Table Specifics */
+    .log-header {
+      background-color: var(--log-header-bg) !important;
+      color: #ffffff !important;
+      text-align: center;
+      font-weight: 700;
+      padding: 8px;
+    }
+    .log-cell-input {
+      width: 70px;
+      text-align: center;
+      padding: 4px 6px;
+      font-size: 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+    }
+    .log-cell-input:focus {
+      border-color: var(--primary-blue);
+      background-color: #f0f9ff;
+    }
 
     /* Badges */
     .badge {
@@ -262,7 +286,7 @@
         <li>
           <a class="nav-item active">
             <i class="fa-solid fa-calendar-check"></i>
-            <span>PMS Scheduling</span>
+            <span>PMS Scheduling & Logs</span>
           </a>
         </li>
       </ul>
@@ -277,12 +301,12 @@
   <!-- ================= 80% RIGHT DISPLAY ================= -->
   <main class="main-content">
     <header class="top-header">
-      <h2>PMS Scheduling</h2>
+      <h2>PMS Scheduling & Daily SMR Log</h2>
     </header>
 
     <div class="content-container">
       
-      <!-- Top Summary Cards -->
+      <!-- Top KPI Summary Cards -->
       <div class="kpi-grid">
         <div class="kpi-card red">
           <div>
@@ -309,11 +333,14 @@
         </div>
       </div>
 
-      <!-- Main Table Panel -->
+      <!-- 1. PMS SCHEDULING TABLE PANEL -->
       <div class="panel">
         <div class="panel-header">
+          <div class="panel-title">
+            <i class="fa-solid fa-calendar-days" style="color: var(--primary-blue);"></i> PMS Scheduling Overview
+          </div>
           <div class="filter-group">
-            <input type="text" id="searchInput" class="form-control" placeholder="Search Unit No, Model..." onkeyup="filterData()" style="width: 220px;">
+            <input type="text" id="searchInput" class="form-control" placeholder="Search Unit No, Model..." onkeyup="filterData()" style="width: 200px;">
             
             <select id="typeFilter" class="form-control" onchange="filterData()">
               <option value="ALL">All Meters (SMR & KM)</option>
@@ -354,6 +381,44 @@
               <tr>
                 <td colspan="14" style="text-align: center; padding: 24px; color: var(--text-muted);">
                   <i class="fa-solid fa-spinner fa-spin"></i> Fetching live records from database...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 2. DAILY SMR / KM MONITORING MODULE -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <i class="fa-solid fa-table-cells" style="color: var(--log-header-bg);"></i> Daily SMR / KM Monitoring Matrix
+          </div>
+          <div class="filter-group">
+            <button class="btn btn-outline btn-sm" onclick="shiftDateWindow(-14)">
+              <i class="fa-solid fa-chevron-left"></i> Prev 14 Days
+            </button>
+
+            <input type="date" id="datePickerStart" class="form-control" onchange="handleStartDateChange(this.value)">
+
+            <button class="btn btn-outline btn-sm" onclick="shiftDateWindow(14)">
+              Next 14 Days <i class="fa-solid fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr id="logTableHeaderRow">
+                <th style="min-width: 130px; background-color: #e2e8f0;">EQUIPMENT ID</th>
+                <!-- Daily dates injected dynamically -->
+              </tr>
+            </thead>
+            <tbody id="logTableBody">
+              <tr>
+                <td colspan="15" style="text-align: center; padding: 20px; color: var(--text-muted);">
+                  Loading matrix logs...
                 </td>
               </tr>
             </tbody>
@@ -408,75 +473,109 @@
     </div>
   </div>
 
-  <!-- ================= SUPABASE INTEGRATION & LOGIC ================= -->
+  <!-- ================= APPLICATION SCRIPT ================= -->
   <script>
     // 1. SUPABASE CONNECTION CONFIGURATION
-    // Replace these credentials with your actual Supabase URL & Anon API Key
-    const SUPABASE_URL = "https://kndcixcfzwnmvimdfumb.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtuZGNpeGNmendubXZpbWRmdW1iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3NTAxMzcsImV4cCI6MjEwMDMyNjEzN30._JnKGCFhC_f2m7E9tlBpFbxzdahD65d3nL2VI0jgyJE";
+    const SUPABASE_URL = 'https://YOUR_PROJECT_ID.supabase.co';
+    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
     
-   // ✅ Re-assign without 'const' (or keep only the single declaration at the top of your script)
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // Initialize Supabase client
+    window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const supabase = window.supabaseClient;
+
     let fleetDatabase = [];
+    let dailyLogMap = {}; // Format: { "BD-17_2026-07-20": 10118 }
+    let windowStartDate = new Date(); // Start date for matrix view
+    windowStartDate.setDate(windowStartDate.getDate() - 13); // Default show last 14 days
+
     let currentSelectedUnit = null;
 
-    // 2. FETCH LIVE DATA FROM SUPABASE
+    // 2. FETCH DATA FROM SUPABASE
     async function fetchFleetFromDB() {
-  const tbody = document.getElementById("assetTableBody");
-  
-  try {
-    console.log("Connecting to Supabase at:", SUPABASE_URL);
+      const tbody = document.getElementById("assetTableBody");
 
-    // Make request with a timeout
-    const { data, error } = await supabase
-      .from('equipment')
-      .select('*')
-      .order('equipment_id', { ascending: true });
+      try {
+        // Fetch Equipment Assets
+        const { data: equipmentData, error: eqError } = await supabase
+          .from('equipment')
+          .select('*')
+          .order('equipment_id', { ascending: true });
 
-    if (error) {
-      console.error("Supabase Error Details:", error);
-      throw error;
+        if (eqError) throw eqError;
+
+        // Fetch Daily Readings Logs
+        const { data: logData, error: logError } = await supabase
+          .from('daily_logs')
+          .select('*');
+
+        if (logError) console.warn("Notice: Could not load daily_logs table yet.", logError.message);
+
+        // Process daily logs into map dictionary
+        dailyLogMap = {};
+        if (logData) {
+          logData.forEach(log => {
+            const key = `${log.equipment_id}_${log.log_date}`;
+            dailyLogMap[key] = parseFloat(log.reading);
+          });
+        }
+
+        // Map equipment array and automatically extract latest daily reading
+        fleetDatabase = equipmentData.map(item => {
+          const eqId = item.equipment_id;
+
+          // Find the latest reading recorded across daily logs for this asset
+          let latestDailyReading = null;
+          let latestDateStr = null;
+
+          Object.keys(dailyLogMap).forEach(key => {
+            if (key.startsWith(`${eqId}_`)) {
+              const dateStr = key.replace(`${eqId}_`, '');
+              if (!latestDateStr || dateStr > latestDateStr) {
+                latestDateStr = dateStr;
+                latestDailyReading = dailyLogMap[key];
+              }
+            }
+          });
+
+          // Use latest daily reading if present, otherwise fall back to database default
+          const currentReading = (latestDailyReading !== null) 
+            ? latestDailyReading 
+            : parseFloat(item.current_reading) || 0;
+
+          return {
+            equipment_id: eqId,
+            brand: item.brand || 'UNKNOWN',
+            model: item.model || 'UNKNOWN',
+            meter_type: item.meter_type ? item.meter_type.toUpperCase() : 'SMR',
+            pms_interval: parseFloat(item.pms_interval) || 500,
+            current_reading: currentReading,
+            avg_daily_usage: parseFloat(item.avg_daily_usage) || 6.5,
+            equipment_status: item.equipment_status || 'OPERATIONAL',
+            last_service_date: item.last_service_date || new Date().toISOString().split('T')[0],
+            last_service_reading: parseFloat(item.last_service_reading) || 0,
+            next_pms_type: item.next_pms_type || 'PM 500'
+          };
+        });
+
+        document.getElementById('footerTotalAssets').textContent = `${fleetDatabase.length} Total Managed Assets`;
+        
+        // Synchronize UI Date Picker
+        document.getElementById("datePickerStart").value = windowStartDate.toISOString().split('T')[0];
+
+        renderTable();
+        renderLogMatrix();
+
+      } catch (err) {
+        console.error('Error fetching data:', err.message);
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="14" style="text-align: center; color: red; padding: 20px;">
+              <strong>Error Loading Data:</strong> ${err.message}. Please verify Supabase URL, Key & RLS policies.
+            </td>
+          </tr>
+        `;
+      }
     }
-
-    if (!data || data.length === 0) {
-      tbody.innerHTML = `
-        <tr>
-          <td colspan="14" style="text-align: center; padding: 24px; color: var(--text-muted);">
-            ⚠️ Connected to Supabase, but the <strong>equipment</strong> table is empty.
-          </td>
-        </tr>`;
-      return;
-    }
-
-    // Map DB record rows safely to JS object properties
-    fleetDatabase = data.map(item => ({
-      equipment_id: item.equipment_id,
-      brand: item.brand || 'UNKNOWN',
-      model: item.model || 'UNKNOWN',
-      meter_type: item.meter_type ? item.meter_type.toUpperCase() : 'SMR',
-      pms_interval: parseFloat(item.pms_interval) || 500,
-      current_reading: parseFloat(item.current_reading) || 0,
-      avg_daily_usage: parseFloat(item.avg_daily_usage) || 6.5,
-      equipment_status: item.equipment_status || 'OPERATIONAL',
-      last_service_date: item.last_service_date || new Date().toISOString().split('T')[0],
-      last_service_reading: parseFloat(item.last_service_reading) || 0,
-      next_pms_type: item.next_pms_type || 'PM 500'
-    }));
-
-    document.getElementById('footerTotalAssets').textContent = `${fleetDatabase.length} Total Managed Assets`;
-    renderTable();
-
-  } catch (err) {
-    console.error("Fetch Exception:", err);
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="14" style="text-align: center; color: #b91c1c; padding: 24px; background: #fee2e2;">
-          <strong>❌ Connection Failed:</strong> ${err.message || 'Unknown error'}<br>
-          <small style="color: #7f1d1d;">Check your Browser Console (F12) for detailed diagnostics.</small>
-        </td>
-      </tr>`;
-  }
-}
 
     // Working-day calculator excluding Sundays
     function addWorkingDays(startDate, days) {
@@ -487,9 +586,7 @@
 
       while (addedDays < count) {
         currentDate.setDate(currentDate.getDate() + 1);
-        if (currentDate.getDay() !== 0) { // 0 = Sunday
-          addedDays++;
-        }
+        if (currentDate.getDay() !== 0) addedDays++;
       }
       return currentDate.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
     }
@@ -505,11 +602,8 @@
       const daysLeft = daily > 0 ? Math.round(unitsLeft / daily) : (unitsLeft <= 0 ? -1 : 999);
       
       let pmsStatus = "NOT YET";
-      if (daysLeft < 0 || unitsLeft < 0) {
-        pmsStatus = "OVERDUE";
-      } else if (daysLeft <= 9) {
-        pmsStatus = "SCHEDULE ME";
-      }
+      if (daysLeft < 0 || unitsLeft < 0) pmsStatus = "OVERDUE";
+      else if (daysLeft <= 9) pmsStatus = "SCHEDULE ME";
 
       const targetDate = addWorkingDays(new Date(), daysLeft);
       const unitLabel = asset.meter_type === "SMR" ? "hrs" : "km";
@@ -517,6 +611,7 @@
       return { ...asset, projectedTarget, unitsLeft, daysLeft, targetDate, pmsStatus, unitLabel };
     }
 
+    // 3. RENDER PMS SCHEDULING TABLE
     function renderTable(filteredData = fleetDatabase) {
       const tbody = document.getElementById("assetTableBody");
       tbody.innerHTML = "";
@@ -546,7 +641,7 @@
           <td>${item.brand} ${item.model}</td>
           <td><span class="badge ${eqStatusClass}">${item.equipment_status}</span></td>
           <td>${item.pms_interval.toLocaleString()} ${item.unitLabel}</td>
-          <td>${item.current_reading.toLocaleString()} ${item.unitLabel}</td>
+          <td><strong>${item.current_reading.toLocaleString()} ${item.unitLabel}</strong></td>
           <td>${item.last_service_date || 'N/A'}</td>
           <td>${item.last_service_reading.toLocaleString()} ${item.unitLabel}</td>
           <td><strong>${item.projectedTarget.toLocaleString()}</strong></td>
@@ -564,10 +659,134 @@
         tbody.appendChild(tr);
       });
 
-      // Update KPI Counter Cards
       document.getElementById("kpi-overdue").textContent = overdueCount;
       document.getElementById("kpi-schedule").textContent = scheduleCount;
       document.getElementById("kpi-notyet").textContent = notYetCount;
+    }
+
+    // 4. RENDER DAILY SMR / KM MATRIX TABLE
+    function renderLogMatrix() {
+      const headerRow = document.getElementById("logTableHeaderRow");
+      const tbody = document.getElementById("logTableBody");
+
+      // Generate 14-day date column headers
+      const dateColumns = [];
+      let tempDate = new Date(windowStartDate);
+
+      headerRow.innerHTML = `<th style="min-width: 120px; background-color: #e2e8f0; text-align: left;">EQUIPMENT ID</th>`;
+
+      for (let i = 0; i < 14; i++) {
+        const dateStr = tempDate.toISOString().split('T')[0];
+        const monthDayStr = `${tempDate.getMonth() + 1}/${tempDate.getDate()}`;
+        
+        dateColumns.push(dateStr);
+
+        const th = document.createElement("th");
+        th.className = "log-header";
+        th.textContent = monthDayStr;
+        headerRow.appendChild(th);
+
+        tempDate.setDate(tempDate.getDate() + 1);
+      }
+
+      // Render Matrix Rows
+      tbody.innerHTML = "";
+      fleetDatabase.forEach(asset => {
+        const tr = document.createElement("tr");
+
+        let rowHtml = `<td><strong>${asset.equipment_id}</strong></td>`;
+
+        dateColumns.forEach(dateStr => {
+          const logKey = `${asset.equipment_id}_${dateStr}`;
+          const currentVal = dailyLogMap[logKey] !== undefined ? dailyLogMap[logKey] : '';
+
+          rowHtml += `
+            <td style="text-align: center; padding: 4px;">
+              <input type="number" 
+                     class="log-cell-input" 
+                     value="${currentVal}" 
+                     placeholder="-" 
+                     onchange="saveDailyLog('${asset.equipment_id}', '${dateStr}', this.value)">
+            </td>
+          `;
+        });
+
+        tr.innerHTML = rowHtml;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // 5. SAVE DAILY SMR / KM ENTRY & UPDATE CURRENT READING
+    async function saveDailyLog(equipmentId, logDate, value) {
+      const numericVal = parseFloat(value);
+      const logKey = `${equipmentId}_${logDate}`;
+
+      if (isNaN(numericVal)) {
+        delete dailyLogMap[logKey];
+      } else {
+        dailyLogMap[logKey] = numericVal;
+      }
+
+      // Find the latest recorded reading date across all logs for this equipment
+      let latestReading = null;
+      let latestDateStr = null;
+
+      Object.keys(dailyLogMap).forEach(key => {
+        if (key.startsWith(`${equipmentId}_`)) {
+          const dateStr = key.replace(`${equipmentId}_`, '');
+          if (!latestDateStr || dateStr > latestDateStr) {
+            latestDateStr = dateStr;
+            latestReading = dailyLogMap[key];
+          }
+        }
+      });
+
+      // Update local asset model's current_reading
+      const asset = fleetDatabase.find(a => a.equipment_id === equipmentId);
+      if (asset && latestReading !== null) {
+        asset.current_reading = latestReading;
+        renderTable(); // Refresh upper PMS scheduling calculations live
+      }
+
+      // Persist log entry to Supabase
+      try {
+        if (!isNaN(numericVal)) {
+          const { error } = await supabase
+            .from('daily_logs')
+            .upsert({ 
+              equipment_id: equipmentId, 
+              log_date: logDate, 
+              reading: numericVal 
+            }, { onConflict: 'equipment_id, log_date' });
+
+          if (error) throw error;
+        }
+
+        // Also update equipment table's current_reading
+        if (asset && latestReading !== null) {
+          await supabase
+            .from('equipment')
+            .update({ current_reading: latestReading })
+            .eq('equipment_id', equipmentId);
+        }
+
+      } catch (err) {
+        console.error("Error saving daily log:", err.message);
+      }
+    }
+
+    // Date Shift Controls for Log Matrix
+    function shiftDateWindow(days) {
+      windowStartDate.setDate(windowStartDate.getDate() + days);
+      document.getElementById("datePickerStart").value = windowStartDate.toISOString().split('T')[0];
+      renderLogMatrix();
+    }
+
+    function handleStartDateChange(newDateStr) {
+      if (newDateStr) {
+        windowStartDate = new Date(newDateStr);
+        renderLogMatrix();
+      }
     }
 
     function filterData() {
@@ -623,7 +842,6 @@
       document.getElementById("pmsModal").style.display = "none";
     }
 
-    // 3. UPDATE RECORDS BACK TO SUPABASE DB
     async function savePmsRecord() {
       if (!currentSelectedUnit) return;
 
@@ -649,7 +867,6 @@
 
         if (error) throw error;
 
-        // Local state update
         asset.last_service_date = updatedDate;
         asset.last_service_reading = updatedReading;
         asset.current_reading = updatedReading;
@@ -659,11 +876,11 @@
         renderTable();
         closeModal();
       } catch (err) {
-        alert("Failed to update database: " + err.message);
+        alert("Failed to update PMS record: " + err.message);
       }
     }
 
-    // Trigger fetch on page load
+    // Trigger initial load
     window.addEventListener('DOMContentLoaded', fetchFleetFromDB);
   </script>
 </body>

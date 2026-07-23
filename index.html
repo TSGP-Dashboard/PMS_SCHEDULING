@@ -13,7 +13,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
-    /* --- COLOR PALETTE & EXCEL-DENSE LAYOUT RESET --- */
+    /* --- COLOR PALETTE & LAYOUT RESET --- */
     :root {
       --bg-sidebar: #f0f3f6;
       --border-sidebar: #dcdfe4;
@@ -42,7 +42,7 @@
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
     body { display: flex; height: 100vh; background-color: var(--bg-main); color: var(--text-main); overflow: hidden; }
 
-    /* --- SIDEBAR (COMPACT 16%) --- */
+    /* --- SIDEBAR --- */
     .sidebar {
       width: 16%;
       min-width: 190px;
@@ -101,7 +101,7 @@
       color: var(--text-muted);
     }
 
-    /* --- MAIN DISPLAY (84%) --- */
+    /* --- MAIN DISPLAY --- */
     .main-content {
       width: 84%;
       flex-grow: 1;
@@ -120,7 +120,7 @@
     }
     .top-header h2 { font-size: 16px; font-weight: 700; }
 
-    /* Compact Top KPI Badges Bar */
+    /* Top KPI Strip */
     .kpi-strip {
       display: flex;
       gap: 12px;
@@ -141,7 +141,7 @@
 
     .content-container { padding: 12px 16px; display: flex; flex-direction: column; gap: 12px; }
 
-    /* EXCEL PANEL STYLE */
+    /* PANELS */
     .panel {
       background: var(--bg-card);
       border: 1px solid var(--border-card);
@@ -195,7 +195,6 @@
     .btn-outline:hover { background: #f1f5f9; }
     .btn-outline:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    /* Compact Pagination Footer */
     .panel-footer {
       padding: 6px 12px;
       border-top: 1px solid var(--border-card);
@@ -207,7 +206,7 @@
     .pagination-info { font-size: 11px; color: var(--text-muted); }
     .pagination-controls { display: flex; gap: 6px; align-items: center; }
 
-    /* ULTRA COMPACT EXCEL TABLE FORMATTING */
+    /* TABLES */
     .table-responsive { overflow-x: auto; max-width: 100%; }
     table { width: 100%; border-collapse: collapse; text-align: left; font-size: 11px; line-height: 1.2; }
     th {
@@ -229,7 +228,7 @@
     }
     tbody tr:hover { background-color: #f8fafc; }
 
-    /* Matrix Log Table Specifics */
+    /* Log Table Matrix */
     .log-header {
       background-color: var(--log-header-bg) !important;
       color: #ffffff !important;
@@ -247,7 +246,7 @@
     }
     .log-cell-input:focus { border-color: var(--primary-blue); background-color: #f0f9ff; }
 
-    /* Calendar Grid Specifics */
+    /* Calendar Grid */
     .cal-header {
       background-color: var(--calendar-header-bg) !important;
       color: #ffffff !important;
@@ -362,7 +361,7 @@
     <header class="top-header">
       <h2 id="mainHeaderTitle">PMS Scheduling Overview</h2>
       
-      <!-- Compact Top Header KPI Strip -->
+      <!-- Top Header KPI Strip -->
       <div class="kpi-strip">
         <div class="kpi-badge-item red">
           <span>Overdue:</span> <strong id="kpi-overdue">0</strong>
@@ -496,7 +495,7 @@
         </div>
       </div>
 
-      <!-- MODULE 3: PMS CALENDAR VIEW (LIMITED TO 8 WEEKS) -->
+      <!-- MODULE 3: PMS CALENDAR VIEW (8-WEEK VIEWPORT) -->
       <div class="panel" id="calendarModuleView" style="display: none;">
         <div class="panel-header">
           <div class="panel-title">
@@ -664,7 +663,7 @@
     let currentPage = 1;
     const itemsPerPage = 20;
 
-    // Helper: Compute Saturday Start of a given week date
+    // Saturday Start helper
     function getSaturdayStart(d) {
       const date = new Date(d);
       const day = date.getDay();
@@ -674,9 +673,9 @@
       return date;
     }
 
-    // Anchor: Week 24 = June 13, 2026 (Saturday) - June 19, 2026 (Friday)
+    // Anchor: Week 24 = June 13, 2026 (Saturday)
     const ANCHOR_WEEK_NUM = 24;
-    const ANCHOR_SATURDAY = new Date(2026, 5, 13); // Month is 0-indexed (5 = June)
+    const ANCHOR_SATURDAY = new Date(2026, 5, 13); 
 
     function getWeekNumber(saturdayDate) {
       const diffTime = saturdayDate.getTime() - ANCHOR_SATURDAY.getTime();
@@ -684,7 +683,7 @@
       return ANCHOR_WEEK_NUM + diffWeeks;
     }
 
-    // 2. FETCH DATA FROM SUPABASE
+    // 2. FETCH DATA FROM SUPABASE (FETCHING EQUIPMENT & PMS_RECORDS)
     async function fetchFleetFromDB() {
       const tbody = document.getElementById("assetTableBody");
       const syncBtn = document.getElementById("btnSync");
@@ -704,6 +703,7 @@
       }
 
       try {
+        // Step A: Fetch main Equipment records
         const { data: equipmentData, error: eqError } = await supabase
           .from('equipment')
           .select('*')
@@ -711,6 +711,7 @@
 
         if (eqError) throw eqError;
 
+        // Step B: Fetch Daily logs
         const { data: logData, error: logError } = await supabase
           .from('daily_logs')
           .select('*');
@@ -722,6 +723,24 @@
           logData.forEach(log => {
             const key = `${log.equipment_id}_${log.log_date}`;
             dailyLogMap[key] = parseFloat(log.reading);
+          });
+        }
+
+        // Step C: Fetch PMS Records (Service History)
+        const { data: pmsRecords, error: pmsError } = await supabase
+          .from('pms_records')
+          .select('*')
+          .order('service_date', { ascending: false });
+
+        if (pmsError) console.warn("Notice: Could not load pms_records table yet.", pmsError.message);
+
+        // Map the latest service record per equipment
+        const latestPmsMap = {};
+        if (pmsRecords) {
+          pmsRecords.forEach(rec => {
+            if (!latestPmsMap[rec.equipment_id]) {
+              latestPmsMap[rec.equipment_id] = rec; // First found is latest due to ORDER BY DESC
+            }
           });
         }
 
@@ -745,6 +764,8 @@
             ? latestDailyReading 
             : parseFloat(item.current_reading) || 0;
 
+          const lastPms = latestPmsMap[eqId] || {};
+
           return {
             equipment_id: eqId,
             brand: item.brand || 'UNKNOWN',
@@ -755,8 +776,9 @@
             reading_date: latestDateStr || 'Initial',
             avg_daily_usage: parseFloat(item.avg_daily_usage) || 6.5,
             equipment_status: item.equipment_status || 'OPERATIONAL',
-            last_service_date: item.last_service_date || new Date().toISOString().split('T')[0],
-            last_service_reading: parseFloat(item.last_service_reading) || 0,
+            // Pulled from pms_records history table
+            last_service_date: lastPms.service_date || 'N/A',
+            last_service_reading: parseFloat(lastPms.service_reading) || 0,
             next_pms_type: item.next_pms_type || 'PM 500'
           };
         });
@@ -1076,7 +1098,7 @@
       }
     }
 
-    /* MODULE 3: PMS CALENDAR MATRIX IMPLEMENTATION (8-WEEK VIEWPORT & PAGINATION) */
+    /* MODULE 3: PMS CALENDAR MATRIX */
     function renderCalendarMatrix() {
       const headerRow = document.getElementById("calTableHeaderRow");
       const tbody = document.getElementById("calTableBody");
@@ -1086,13 +1108,11 @@
 
       headerRow.innerHTML = `<th style="min-width: 120px; background-color: #e2e8f0; text-align: left;">EQUIPMENT ID</th>`;
 
-      // Base Saturday (Anchor: June 13, 2026) adjusted by offset
       const baseSat = new Date(ANCHOR_SATURDAY);
       baseSat.setDate(baseSat.getDate() + (calendarStartWeekOffset * 7));
 
       const weekColumns = [];
 
-      // DISPLAY EXACTLY 8 WEEKS FOR CLEANER UI
       for (let i = 0; i < 8; i++) {
         const satDate = new Date(baseSat);
         satDate.setDate(satDate.getDate() + (i * 7));
@@ -1121,7 +1141,6 @@
       tbody.innerHTML = "";
       const displayAssets = fleetDatabase.filter(a => selectedGroup === "ALL" || a.equipment_id.toUpperCase().startsWith(selectedGroup));
 
-      // CALENDAR PAGINATION LOGIC (20 ITEMS PER PAGE)
       const totalCalItems = displayAssets.length;
       const totalCalPages = Math.ceil(totalCalItems / calItemsPerPage) || 1;
 
@@ -1168,7 +1187,6 @@
         tbody.appendChild(tr);
       });
 
-      // Update Pagination Controls
       document.getElementById("calPaginationInfo").textContent = `Showing ${startIndex + 1}-${endIndex} of ${totalCalItems} equipment`;
       document.getElementById("calPageIndicator").textContent = `Page ${calCurrentPage} of ${totalCalPages}`;
       document.getElementById("btnCalPrevPage").disabled = calCurrentPage === 1;
@@ -1190,7 +1208,7 @@
       renderCalendarMatrix();
     }
 
-    /* EXPORT EXCEL FOR SELECTED 8 WEEKS ONLY */
+    /* EXPORT EXCEL FOR SELECTED 8 WEEKS */
     function exportCalendarToExcel() {
       const selectedGroup = document.getElementById("calGroupFilter") ? document.getElementById("calGroupFilter").value : "ALL";
       const displayAssets = fleetDatabase.filter(a => selectedGroup === "ALL" || a.equipment_id.toUpperCase().startsWith(selectedGroup));
@@ -1200,7 +1218,6 @@
         return;
       }
 
-      // Compute current 8 visible weeks
       const baseSat = new Date(ANCHOR_SATURDAY);
       baseSat.setDate(baseSat.getDate() + (calendarStartWeekOffset * 7));
 
@@ -1223,12 +1240,10 @@
         });
       }
 
-      // Build CSV Data Header Row
       let csvLines = [];
       let headers = ['Equipment ID', 'Brand', 'Model', 'Status', ...visibleWeeks.map(w => `"${w.title}"`)];
       csvLines.push(headers.join(','));
 
-      // Build Data Rows
       displayAssets.forEach(rawAsset => {
         const item = computeAsset(rawAsset);
         let row = [
@@ -1250,7 +1265,6 @@
         csvLines.push(row.join(','));
       });
 
-      // Trigger File Download
       const csvContent = "data:text/csv;charset=utf-8," + csvLines.join("\n");
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement("a");
@@ -1299,6 +1313,7 @@
       document.getElementById("pmsModal").style.display = "none";
     }
 
+    /* SAVE PMS RECORD (SPLIT WRITE LOGIC) */
     async function savePmsRecord() {
       if (!currentSelectedUnit) return;
 
@@ -1312,24 +1327,39 @@
 
       if (supabase) {
         try {
-          const { error } = await supabase
+          // 1. Insert history entry into 'pms_records' table
+          const { error: pmsInsertError } = await supabase
+            .from('pms_records')
+            .insert([
+              {
+                equipment_id: currentSelectedUnit,
+                service_date: updatedDate,
+                service_reading: updatedReading,
+                pms_type: updatedNextPms
+              }
+            ]);
+
+          if (pmsInsertError) throw pmsInsertError;
+
+          // 2. Update operational stats in 'equipment' table
+          const { error: eqUpdateError } = await supabase
             .from('equipment')
             .update({
               current_reading: updatedReading,
-              last_service_reading: updatedReading,
-              last_service_date: updatedDate,
               next_pms_type: updatedNextPms,
               avg_daily_usage: updatedDailyRate
             })
             .eq('equipment_id', currentSelectedUnit);
 
-          if (error) throw error;
+          if (eqUpdateError) throw eqUpdateError;
+
         } catch (err) {
           alert("Failed to update PMS record: " + err.message);
           return;
         }
       }
 
+      // Update local state
       asset.last_service_date = updatedDate;
       asset.last_service_reading = updatedReading;
       asset.current_reading = updatedReading;

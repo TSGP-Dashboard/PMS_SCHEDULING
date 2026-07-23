@@ -350,7 +350,7 @@
             <i class="fa-solid fa-calendar-days" style="color: var(--primary-blue);"></i> PMS Scheduling Table
           </div>
           <div class="filter-group">
-            <!-- 1. Equipment Group Filter (Prefixes like BD, BH, etc) -->
+            <!-- 1. Equipment Group Filter -->
             <select id="groupFilter" class="form-control" onchange="filterData()">
               <option value="ALL">All Equipment Groups</option>
             </select>
@@ -508,11 +508,40 @@
 
   <!-- ================= APPLICATION SCRIPT ================= -->
   <script>
+    // --- GLOBAL DECLARATIONS AT TOP TO PREVENT ReferenceError ---
+    function switchView(view) {
+      const pmsView = document.getElementById("pmsModuleView");
+      const logsView = document.getElementById("logsModuleView");
+      const navPms = document.getElementById("nav-pms");
+      const navLogs = document.getElementById("nav-logs");
+      const title = document.getElementById("mainHeaderTitle");
+
+      if (!pmsView || !logsView) return;
+
+      if (view === 'pms') {
+        pmsView.style.display = "block";
+        logsView.style.display = "none";
+        if (navPms) navPms.classList.add("active");
+        if (navLogs) navLogs.classList.remove("active");
+        if (title) title.textContent = "PMS Scheduling Overview";
+      } else {
+        pmsView.style.display = "none";
+        logsView.style.display = "block";
+        if (navPms) navPms.classList.remove("active");
+        if (navLogs) navLogs.classList.add("active");
+        if (title) title.textContent = "Daily SMR / KM Monitoring Logs";
+        renderLogMatrix();
+      }
+    }
+
     // 1. SUPABASE CONNECTION CONFIGURATION
     const SUPABASE_URL = 'https://kndcixcfzwnmvimdfumb.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtuZGNpeGNmendubXZpbWRmdW1iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3NTAxMzcsImV4cCI6MjEwMDMyNjEzN30._JnKGCFhC_f2m7E9tlBpFbxzdahD65d3nL2VI0jgyJE';
     
-    window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // Safely initialize Supabase
+    if (window.supabase) {
+      window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
     const supabase = window.supabaseClient;
 
     let fleetDatabase = [];
@@ -527,33 +556,14 @@
     let currentPage = 1;
     const itemsPerPage = 20;
 
-    // View Switching Logic
-    function switchView(view) {
-      const pmsView = document.getElementById("pmsModuleView");
-      const logsView = document.getElementById("logsModuleView");
-      const navPms = document.getElementById("nav-pms");
-      const navLogs = document.getElementById("nav-logs");
-      const title = document.getElementById("mainHeaderTitle");
-
-      if (view === 'pms') {
-        pmsView.style.display = "block";
-        logsView.style.display = "none";
-        navPms.classList.add("active");
-        navLogs.classList.remove("active");
-        title.textContent = "PMS Scheduling Overview";
-      } else {
-        pmsView.style.display = "none";
-        logsView.style.display = "block";
-        navPms.classList.remove("active");
-        navLogs.classList.add("active");
-        title.textContent = "Daily SMR / KM Monitoring Logs";
-        renderLogMatrix();
-      }
-    }
-
     // 2. FETCH DATA FROM SUPABASE
     async function fetchFleetFromDB() {
       const tbody = document.getElementById("assetTableBody");
+
+      if (!supabase) {
+        if (tbody) tbody.innerHTML = `<tr><td colspan="14" style="text-align: center; color: var(--status-amber-text); padding: 20px;"><strong>Configuration Required:</strong> Please enter your <code>SUPABASE_URL</code> and <code>SUPABASE_ANON_KEY</code> in the script tag.</td></tr>`;
+        return;
+      }
 
       try {
         const { data: equipmentData, error: eqError } = await supabase
@@ -577,7 +587,7 @@
           });
         }
 
-        fleetDatabase = equipmentData.map(item => {
+        fleetDatabase = (equipmentData || []).map(item => {
           const eqId = item.equipment_id;
 
           let latestDailyReading = null;
@@ -620,12 +630,14 @@
 
       } catch (err) {
         console.error('Error fetching data:', err.message);
-        tbody.innerHTML = `
-          <tr>
-            <td colspan="14" style="text-align: center; color: red; padding: 20px;">
-              <strong>Error Loading Data:</strong> ${err.message}. Please check connection.
-            </td>
-          </tr>`;
+        if (tbody) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="14" style="text-align: center; color: red; padding: 20px;">
+                <strong>Error Loading Data:</strong> ${err.message}
+              </td>
+            </tr>`;
+        }
       }
     }
 
@@ -642,19 +654,23 @@
       const groupSelect = document.getElementById("groupFilter");
       const logsGroupSelect = document.getElementById("logsGroupFilter");
 
-      groupSelect.innerHTML = `<option value="ALL">All Equipment Groups</option>`;
-      logsGroupSelect.innerHTML = `<option value="ALL">All Equipment Groups</option>`;
+      if (groupSelect) groupSelect.innerHTML = `<option value="ALL">All Equipment Groups</option>`;
+      if (logsGroupSelect) logsGroupSelect.innerHTML = `<option value="ALL">All Equipment Groups</option>`;
 
       Array.from(prefixes).sort().forEach(prefix => {
-        const option1 = document.createElement("option");
-        option1.value = prefix;
-        option1.textContent = `${prefix} Series`;
-        groupSelect.appendChild(option1);
+        if (groupSelect) {
+          const option1 = document.createElement("option");
+          option1.value = prefix;
+          option1.textContent = `${prefix} Series`;
+          groupSelect.appendChild(option1);
+        }
 
-        const option2 = document.createElement("option");
-        option2.value = prefix;
-        option2.textContent = `${prefix} Series`;
-        logsGroupSelect.appendChild(option2);
+        if (logsGroupSelect) {
+          const option2 = document.createElement("option");
+          option2.value = prefix;
+          option2.textContent = `${prefix} Series`;
+          logsGroupSelect.appendChild(option2);
+        }
       });
     }
 
@@ -693,10 +709,10 @@
 
     // Filter Logic
     function filterData() {
-      const groupVal = document.getElementById("groupFilter").value;
-      const searchVal = document.getElementById("searchInput").value.toLowerCase();
-      const typeVal = document.getElementById("typeFilter").value;
-      const statusVal = document.getElementById("statusFilter").value;
+      const groupVal = document.getElementById("groupFilter") ? document.getElementById("groupFilter").value : "ALL";
+      const searchVal = document.getElementById("searchInput") ? document.getElementById("searchInput").value.toLowerCase() : "";
+      const typeVal = document.getElementById("typeFilter") ? document.getElementById("typeFilter").value : "ALL";
+      const statusVal = document.getElementById("statusFilter") ? document.getElementById("statusFilter").value : "ALL";
 
       currentFilteredData = fleetDatabase.filter(a => {
         const computed = computeAsset(a);
@@ -710,7 +726,7 @@
         return matchesGroup && matchesSearch && matchesType && matchesStatus;
       });
 
-      currentPage = 1; // Reset to page 1 on filter change
+      currentPage = 1;
       updateKpis();
       renderTable();
     }
@@ -732,6 +748,7 @@
     // 3. RENDER PMS TABLE WITH 20-ITEM PAGINATION
     function renderTable() {
       const tbody = document.getElementById("assetTableBody");
+      if (!tbody) return;
       tbody.innerHTML = "";
 
       const totalItems = currentFilteredData.length;
@@ -785,7 +802,6 @@
         tbody.appendChild(tr);
       });
 
-      // Update Pagination Bar
       document.getElementById("paginationInfo").textContent = `Showing ${startIndex + 1}-${endIndex} of ${totalItems} equipment`;
       document.getElementById("pageIndicator").textContent = `Page ${currentPage} of ${totalPages}`;
       document.getElementById("btnPrevPage").disabled = currentPage === 1;
@@ -801,7 +817,9 @@
     function renderLogMatrix() {
       const headerRow = document.getElementById("logTableHeaderRow");
       const tbody = document.getElementById("logTableBody");
-      const selectedGroup = document.getElementById("logsGroupFilter").value;
+      const selectedGroup = document.getElementById("logsGroupFilter") ? document.getElementById("logsGroupFilter").value : "ALL";
+
+      if (!headerRow || !tbody) return;
 
       const dateColumns = [];
       let tempDate = new Date(windowStartDate);
@@ -879,21 +897,23 @@
         asset.current_reading = latestReading;
       }
 
-      try {
-        if (!isNaN(numericVal)) {
-          await supabase.from('daily_logs').upsert({ 
-            equipment_id: equipmentId, 
-            log_date: logDate, 
-            reading: numericVal 
-          }, { onConflict: 'equipment_id, log_date' });
-        }
+      if (supabase) {
+        try {
+          if (!isNaN(numericVal)) {
+            await supabase.from('daily_logs').upsert({ 
+              equipment_id: equipmentId, 
+              log_date: logDate, 
+              reading: numericVal 
+            }, { onConflict: 'equipment_id, log_date' });
+          }
 
-        if (asset && latestReading !== null) {
-          await supabase.from('equipment').update({ current_reading: latestReading }).eq('equipment_id', equipmentId);
-        }
+          if (asset && latestReading !== null) {
+            await supabase.from('equipment').update({ current_reading: latestReading }).eq('equipment_id', equipmentId);
+          }
 
-      } catch (err) {
-        console.error("Error saving daily log:", err.message);
+        } catch (err) {
+          console.error("Error saving daily log:", err.message);
+        }
       }
     }
 
@@ -955,31 +975,34 @@
       const updatedNextPms = document.getElementById("modalNextPmsType").value;
       const updatedDailyRate = parseFloat(document.getElementById("modalDailyRate").value);
 
-      try {
-        const { error } = await supabase
-          .from('equipment')
-          .update({
-            current_reading: updatedReading,
-            last_service_reading: updatedReading,
-            last_service_date: updatedDate,
-            next_pms_type: updatedNextPms,
-            avg_daily_usage: updatedDailyRate
-          })
-          .eq('equipment_id', currentSelectedUnit);
+      if (supabase) {
+        try {
+          const { error } = await supabase
+            .from('equipment')
+            .update({
+              current_reading: updatedReading,
+              last_service_reading: updatedReading,
+              last_service_date: updatedDate,
+              next_pms_type: updatedNextPms,
+              avg_daily_usage: updatedDailyRate
+            })
+            .eq('equipment_id', currentSelectedUnit);
 
-        if (error) throw error;
-
-        asset.last_service_date = updatedDate;
-        asset.last_service_reading = updatedReading;
-        asset.current_reading = updatedReading;
-        asset.next_pms_type = updatedNextPms;
-        asset.avg_daily_usage = updatedDailyRate;
-
-        renderTable();
-        closeModal();
-      } catch (err) {
-        alert("Failed to update PMS record: " + err.message);
+          if (error) throw error;
+        } catch (err) {
+          alert("Failed to update PMS record: " + err.message);
+          return;
+        }
       }
+
+      asset.last_service_date = updatedDate;
+      asset.last_service_reading = updatedReading;
+      asset.current_reading = updatedReading;
+      asset.next_pms_type = updatedNextPms;
+      asset.avg_daily_usage = updatedDailyRate;
+
+      renderTable();
+      closeModal();
     }
 
     window.addEventListener('DOMContentLoaded', fetchFleetFromDB);

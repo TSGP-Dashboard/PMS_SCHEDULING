@@ -422,43 +422,61 @@
 
     // 2. FETCH LIVE DATA FROM SUPABASE
     async function fetchFleetFromDB() {
-      try {
-        const { data, error } = await supabase
-          .from('equipment')
-          .select('*')
-          .order('equipment_id', { ascending: true });
+  const tbody = document.getElementById("assetTableBody");
+  
+  try {
+    console.log("Connecting to Supabase at:", SUPABASE_URL);
 
-        if (error) throw error;
+    // Make request with a timeout
+    const { data, error } = await supabase
+      .from('equipment')
+      .select('*')
+      .order('equipment_id', { ascending: true });
 
-        // Map DB record rows safely to JS object properties
-        fleetDatabase = data.map(item => ({
-          equipment_id: item.equipment_id,
-          brand: item.brand || 'UNKNOWN',
-          model: item.model || 'UNKNOWN',
-          meter_type: item.meter_type ? item.meter_type.toUpperCase() : 'SMR',
-          pms_interval: parseFloat(item.pms_interval) || 500,
-          current_reading: parseFloat(item.current_reading) || 0,
-          avg_daily_usage: parseFloat(item.avg_daily_usage) || 6.5,
-          equipment_status: item.equipment_status || 'OPERATIONAL',
-          last_service_date: item.last_service_date || new Date().toISOString().split('T')[0],
-          last_service_reading: parseFloat(item.last_service_reading) || 0,
-          next_pms_type: item.next_pms_type || 'PM 500'
-        }));
-
-        document.getElementById('footerTotalAssets').textContent = `${fleetDatabase.length} Total Managed Assets`;
-        renderTable();
-
-      } catch (err) {
-        console.error('Error loading Supabase data:', err.message);
-        document.getElementById("assetTableBody").innerHTML = `
-          <tr>
-            <td colspan="14" style="text-align: center; color: red; padding: 20px;">
-              <strong>Database Fetch Error:</strong> ${err.message}. Check Supabase URL / Anon key and RLS settings.
-            </td>
-          </tr>
-        `;
-      }
+    if (error) {
+      console.error("Supabase Error Details:", error);
+      throw error;
     }
+
+    if (!data || data.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="14" style="text-align: center; padding: 24px; color: var(--text-muted);">
+            ⚠️ Connected to Supabase, but the <strong>equipment</strong> table is empty.
+          </td>
+        </tr>`;
+      return;
+    }
+
+    // Map DB record rows safely to JS object properties
+    fleetDatabase = data.map(item => ({
+      equipment_id: item.equipment_id,
+      brand: item.brand || 'UNKNOWN',
+      model: item.model || 'UNKNOWN',
+      meter_type: item.meter_type ? item.meter_type.toUpperCase() : 'SMR',
+      pms_interval: parseFloat(item.pms_interval) || 500,
+      current_reading: parseFloat(item.current_reading) || 0,
+      avg_daily_usage: parseFloat(item.avg_daily_usage) || 6.5,
+      equipment_status: item.equipment_status || 'OPERATIONAL',
+      last_service_date: item.last_service_date || new Date().toISOString().split('T')[0],
+      last_service_reading: parseFloat(item.last_service_reading) || 0,
+      next_pms_type: item.next_pms_type || 'PM 500'
+    }));
+
+    document.getElementById('footerTotalAssets').textContent = `${fleetDatabase.length} Total Managed Assets`;
+    renderTable();
+
+  } catch (err) {
+    console.error("Fetch Exception:", err);
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="14" style="text-align: center; color: #b91c1c; padding: 24px; background: #fee2e2;">
+          <strong>❌ Connection Failed:</strong> ${err.message || 'Unknown error'}<br>
+          <small style="color: #7f1d1d;">Check your Browser Console (F12) for detailed diagnostics.</small>
+        </td>
+      </tr>`;
+  }
+}
 
     // Working-day calculator excluding Sundays
     function addWorkingDays(startDate, days) {

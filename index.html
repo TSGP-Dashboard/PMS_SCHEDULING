@@ -45,7 +45,7 @@
     /* --- SIDEBAR --- */
     .sidebar {
       width: 16%;
-      min-width: 190px;
+      min-width: 210px;
       background-color: var(--bg-sidebar);
       border-right: 1px solid var(--border-sidebar);
       display: flex;
@@ -94,8 +94,45 @@
       border: 1px solid var(--light-blue-border);
     }
 
+    /* INLINE LOGIN AREA (BOTTOM LEFT) */
+    .sidebar-login-panel {
+      padding: 10px 12px;
+      border-top: 1px solid var(--border-sidebar);
+      background-color: #e2e8f0;
+    }
+    .login-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .login-form { display: flex; flex-direction: column; gap: 6px; }
+    .login-input {
+      width: 100%;
+      padding: 4px 8px;
+      font-size: 11px;
+      border: 1px solid var(--border-card);
+      border-radius: 4px;
+      outline: none;
+      background: #fff;
+    }
+    .login-btn-row { display: flex; gap: 6px; margin-top: 2px; }
+    .role-badge {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 3px;
+      text-transform: uppercase;
+    }
+    .role-guest { background: #cbd5e1; color: #334155; }
+    .role-planner { background: #fef3c7; color: #92400e; }
+    .role-admin { background: #dcfce7; color: #166534; }
+
     .sidebar-footer {
-      padding: 10px 14px;
+      padding: 8px 12px;
       border-top: 1px solid var(--border-sidebar);
       font-size: 11px;
       color: var(--text-muted);
@@ -120,7 +157,6 @@
     }
     .top-header h2 { font-size: 16px; font-weight: 700; }
 
-    /* Top KPI Strip */
     .kpi-strip {
       display: flex;
       gap: 12px;
@@ -244,6 +280,7 @@
       border: 1px solid #cbd5e1;
       border-radius: 3px;
     }
+    .log-cell-input:disabled { background-color: #f1f5f9; cursor: not-allowed; }
     .log-cell-input:focus { border-color: var(--primary-blue); background-color: #f0f9ff; }
 
     /* Calendar Grid */
@@ -256,34 +293,16 @@
       padding: 4px 6px;
       white-space: normal;
     }
-    .cal-cell {
-      text-align: center;
-      padding: 4px 2px;
-      font-size: 10px;
-      font-weight: 700;
-    }
+    .cal-cell { text-align: center; padding: 4px 2px; font-size: 10px; font-weight: 700; }
     .cal-badge {
-      display: inline-block;
-      width: 100%;
-      padding: 3px 2px;
-      border-radius: 3px;
-      color: #fff;
-      font-weight: 700;
-      font-size: 10px;
+      display: inline-block; width: 100%; padding: 3px 2px; border-radius: 3px; color: #fff; font-weight: 700; font-size: 10px;
     }
     .cal-badge-red { background-color: #dc2626; }
     .cal-badge-amber { background-color: #d97706; }
     .cal-badge-green { background-color: #16a34a; }
 
     /* Badges */
-    .badge {
-      display: inline-block;
-      padding: 2px 6px;
-      border-radius: 3px;
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-    }
+    .badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: 700; text-transform: uppercase; }
     .badge-green { background: var(--status-green-bg); color: var(--status-green-text); }
     .badge-amber { background: var(--status-amber-bg); color: var(--status-amber-text); }
     .badge-red { background: var(--status-red-bg); color: var(--status-red-text); }
@@ -301,16 +320,9 @@
     .modal-header h3 { font-size: 14px; font-weight: 700; color: var(--text-main); }
     .modal-close { cursor: pointer; color: var(--text-muted); font-size: 16px; }
     .asset-badge-info {
-      background: var(--light-blue-bg);
-      border: 1px solid var(--light-blue-border);
-      padding: 6px 10px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--primary-blue);
-      margin-bottom: 12px;
-      display: flex;
-      justify-content: space-between;
+      background: var(--light-blue-bg); border: 1px solid var(--light-blue-border);
+      padding: 6px 10px; border-radius: 4px; font-size: 11px; font-weight: 600;
+      color: var(--primary-blue); margin-bottom: 12px; display: flex; justify-content: space-between;
     }
     .modal-body .form-group { margin-bottom: 10px; }
     .modal-body label { display: block; font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px; }
@@ -324,7 +336,7 @@
     <div>
       <div class="brand-header">
         <i class="fa-solid fa-truck-monster"></i>
-        <h1>OAEC PMS Engine</h1>
+        <h1>OAEC PMS ENGINE</h1>
       </div>
 
       <ul class="nav-list">
@@ -350,9 +362,38 @@
       </ul>
     </div>
 
-    <div class="sidebar-footer">
-      <strong>Fleet Management</strong><br>
-      <span id="footerTotalAssets">Loading assets...</span>
+    <div>
+      <!-- INLINE BOTTOM LEFT LOGIN PANEL -->
+      <div class="sidebar-login-panel">
+        <div class="login-title">
+          <span>User Access</span>
+          <span id="roleBadge" class="role-badge role-guest">GUEST</span>
+        </div>
+
+        <div id="loginFormContainer" class="login-form">
+          <input type="text" id="loginUsername" class="login-input" placeholder="Username (admin/planner)">
+          <input type="password" id="loginPassword" class="login-input" placeholder="Password">
+          <div class="login-btn-row">
+            <button class="btn btn-primary btn-sm" style="width: 100%; justify-content: center;" onclick="handleLogin()">
+              <i class="fa-solid fa-right-to-bracket"></i> Log In
+            </button>
+          </div>
+        </div>
+
+        <div id="userInfoContainer" class="login-form" style="display: none;">
+          <div style="font-size: 11px; color: var(--text-main);">
+            Logged in as: <strong id="lblActiveUser">--</strong>
+          </div>
+          <button class="btn btn-outline btn-sm" style="width: 100%; justify-content: center;" onclick="handleLogout()">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i> Switch / Logout
+          </button>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <strong>Fleet Management</strong><br>
+        <span id="footerTotalAssets">Loading assets...</span>
+      </div>
     </div>
   </aside>
 
@@ -495,7 +536,7 @@
         </div>
       </div>
 
-      <!-- MODULE 3: PMS CALENDAR VIEW (8-WEEK VIEWPORT) -->
+      <!-- MODULE 3: PMS CALENDAR VIEW -->
       <div class="panel" id="calendarModuleView" style="display: none;">
         <div class="panel-header">
           <div class="panel-title">
@@ -537,7 +578,6 @@
           </table>
         </div>
 
-        <!-- PMS CALENDAR BOTTOM PAGINATION -->
         <div class="panel-footer">
           <div class="pagination-info" id="calPaginationInfo">Showing 0-0 of 0 equipment</div>
           <div class="pagination-controls">
@@ -592,13 +632,68 @@
 
       <div class="modal-footer">
         <button class="btn btn-outline btn-sm" onclick="closeModal()">Cancel</button>
-        <button class="btn btn-primary btn-sm" onclick="savePmsRecord()">Update PMS Record</button>
+        <button class="btn btn-primary btn-sm" id="btnSavePmsModal" onclick="savePmsRecord()">Update PMS Record</button>
       </div>
     </div>
   </div>
 
   <!-- ================= APPLICATION SCRIPT ================= -->
   <script>
+    // --- USER ROLES & PERMISSIONS ---
+    let currentUserRole = "guest"; // Options: 'guest', 'planner', 'admin'
+    let currentUserName = "Guest";
+
+    function handleLogin() {
+      const userVal = document.getElementById("loginUsername").value.trim().toLowerCase();
+      const passVal = document.getElementById("loginPassword").value.trim();
+
+      if (userVal === "admin" && passVal === "admin123") {
+        currentUserRole = "admin";
+        currentUserName = "Administrator";
+      } else if (userVal === "planner" && passVal === "planner123") {
+        currentUserRole = "planner";
+        currentUserName = "Planner";
+      } else {
+        alert("Invalid login credentials!\n\nDemo Logins:\n• admin / admin123\n• planner / planner123");
+        return;
+      }
+
+      updateUserUIState();
+    }
+
+    function handleLogout() {
+      currentUserRole = "guest";
+      currentUserName = "Guest";
+      document.getElementById("loginUsername").value = "";
+      document.getElementById("loginPassword").value = "";
+      updateUserUIState();
+    }
+
+    function updateUserUIState() {
+      const badge = document.getElementById("roleBadge");
+      const formContainer = document.getElementById("loginFormContainer");
+      const infoContainer = document.getElementById("userInfoContainer");
+      const lblUser = document.getElementById("lblActiveUser");
+
+      if (badge) {
+        badge.className = `role-badge role-${currentUserRole}`;
+        badge.textContent = currentUserRole.toUpperCase();
+      }
+
+      if (currentUserRole === "guest") {
+        if (formContainer) formContainer.style.display = "flex";
+        if (infoContainer) infoContainer.style.display = "none";
+      } else {
+        if (formContainer) formContainer.style.display = "none";
+        if (infoContainer) infoContainer.style.display = "flex";
+        if (lblUser) lblUser.textContent = currentUserName;
+      }
+
+      // Refresh currently open views with updated controls
+      renderTable();
+      renderLogMatrix();
+    }
+
     function switchView(view) {
       const pmsView = document.getElementById("pmsModuleView");
       const logsView = document.getElementById("logsModuleView");
@@ -652,7 +747,7 @@
     let windowStartDate = new Date(); 
     windowStartDate.setDate(windowStartDate.getDate() - 13);
 
-    // Calendar state (Saturday anchor & 8-week display)
+    // Calendar state
     let calendarStartWeekOffset = 0; 
     let calCurrentPage = 1;
     const calItemsPerPage = 20;
@@ -663,7 +758,6 @@
     let currentPage = 1;
     const itemsPerPage = 20;
 
-    // Saturday Start helper
     function getSaturdayStart(d) {
       const date = new Date(d);
       const day = date.getDay();
@@ -673,7 +767,6 @@
       return date;
     }
 
-    // Anchor: Week 24 = June 13, 2026 (Saturday)
     const ANCHOR_WEEK_NUM = 24;
     const ANCHOR_SATURDAY = new Date(2026, 5, 13); 
 
@@ -683,7 +776,6 @@
       return ANCHOR_WEEK_NUM + diffWeeks;
     }
 
-    // 2. FETCH DATA FROM SUPABASE
     async function fetchFleetFromDB() {
       const tbody = document.getElementById("assetTableBody");
       const syncBtn = document.getElementById("btnSync");
@@ -703,7 +795,6 @@
       }
 
       try {
-        // Step A: Fetch main Equipment records
         const { data: equipmentData, error: eqError } = await supabase
           .from('equipment')
           .select('*')
@@ -711,7 +802,6 @@
 
         if (eqError) throw eqError;
 
-        // Step B: Fetch Daily logs
         const { data: logData, error: logError } = await supabase
           .from('daily_logs')
           .select('*');
@@ -726,7 +816,6 @@
           });
         }
 
-        // Step C: Fetch PMS Records (Service History)
         const { data: pmsRecords, error: pmsError } = await supabase
           .from('pms_records')
           .select('*')
@@ -734,12 +823,11 @@
 
         if (pmsError) console.warn("Notice: Could not load pms_records table yet.", pmsError.message);
 
-        // Map the latest service record per equipment
         const latestPmsMap = {};
         if (pmsRecords) {
           pmsRecords.forEach(rec => {
             if (!latestPmsMap[rec.equipment_id]) {
-              latestPmsMap[rec.equipment_id] = rec; // First found is latest due to ORDER BY DESC
+              latestPmsMap[rec.equipment_id] = rec;
             }
           });
         }
@@ -776,7 +864,6 @@
             reading_date: latestDateStr || 'Initial',
             avg_daily_usage: parseFloat(item.avg_daily_usage) || 6.5,
             equipment_status: item.equipment_status || 'OPERATIONAL',
-            // Service details from pms_records history table
             last_service_date: lastPms.service_date || 'N/A',
             last_service_reading: parseFloat(lastPms.service_reading) || 0,
             next_pms_type: lastPms.pms_type || (item.meter_type === 'KM' ? '10,000 KM' : 'PM 500')
@@ -792,12 +879,7 @@
       } catch (err) {
         console.error('Error fetching data:', err.message);
         if (tbody) {
-          tbody.innerHTML = `
-            <tr>
-              <td colspan="15" style="text-align: center; color: red; padding: 12px;">
-                <strong>Error Loading Data:</strong> ${err.message}
-              </td>
-            </tr>`;
+          tbody.innerHTML = `<tr><td colspan="15" style="text-align: center; color: red; padding: 12px;"><strong>Error Loading Data:</strong> ${err.message}</td></tr>`;
         }
       } finally {
         if (syncBtn) {
@@ -811,9 +893,7 @@
       const prefixes = new Set();
       fleetDatabase.forEach(item => {
         const parts = item.equipment_id.split('-');
-        if (parts.length > 0) {
-          prefixes.add(parts[0].toUpperCase());
-        }
+        if (parts.length > 0) prefixes.add(parts[0].toUpperCase());
       });
 
       const groupSelect = document.getElementById("groupFilter");
@@ -935,6 +1015,10 @@
       const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
       const pageData = currentFilteredData.slice(startIndex, endIndex);
 
+      // Disable 'Update Reading' sync button if Guest
+      const syncBtn = document.getElementById("btnSync");
+      if (syncBtn) syncBtn.disabled = (currentUserRole === 'guest');
+
       pageData.forEach(rawAsset => {
         const item = computeAsset(rawAsset);
 
@@ -945,6 +1029,9 @@
         let eqStatusClass = "badge-green";
         if (item.equipment_status === "REHAB") eqStatusClass = "badge-amber";
         if (item.equipment_status === "BREAKDOWN") eqStatusClass = "badge-red";
+
+        // Disable 'Update' action button if Guest
+        const actionBtnDisabled = currentUserRole === 'guest' ? 'disabled' : '';
 
         const tr = document.createElement("tr");
         tr.innerHTML = `
@@ -963,7 +1050,7 @@
           <td>${item.targetDate}</td>
           <td><span class="badge ${badgeClass}">${item.pmsStatus}</span></td>
           <td>
-            <button class="btn btn-outline btn-sm" onclick="openPmsModal('${item.equipment_id}')">
+            <button class="btn btn-outline btn-sm" ${actionBtnDisabled} onclick="openPmsModal('${item.equipment_id}')">
               <i class="fa-solid fa-wrench"></i> Update
             </button>
           </td>
@@ -1011,6 +1098,8 @@
       tbody.innerHTML = "";
       const displayAssets = fleetDatabase.filter(a => selectedGroup === "ALL" || a.equipment_id.toUpperCase().startsWith(selectedGroup));
 
+      const inputsDisabled = currentUserRole === 'guest' ? 'disabled' : '';
+
       displayAssets.forEach(asset => {
         const tr = document.createElement("tr");
 
@@ -1026,6 +1115,7 @@
                      class="log-cell-input" 
                      value="${currentVal}" 
                      placeholder="-" 
+                     ${inputsDisabled}
                      onchange="saveDailyLog('${asset.equipment_id}', '${dateStr}', this.value)">
             </td>
           `;
@@ -1037,6 +1127,8 @@
     }
 
     async function saveDailyLog(equipmentId, logDate, value) {
+      if (currentUserRole === 'guest') return;
+
       const numericVal = parseFloat(value);
       const logKey = `${equipmentId}_${logDate}`;
 
@@ -1098,7 +1190,6 @@
       }
     }
 
-    /* MODULE 3: PMS CALENDAR MATRIX */
     function renderCalendarMatrix() {
       const headerRow = document.getElementById("calTableHeaderRow");
       const tbody = document.getElementById("calTableBody");
@@ -1190,7 +1281,7 @@
       document.getElementById("calPaginationInfo").textContent = `Showing ${startIndex + 1}-${endIndex} of ${totalCalItems} equipment`;
       document.getElementById("calPageIndicator").textContent = `Page ${calCurrentPage} of ${totalCalPages}`;
       document.getElementById("btnCalPrevPage").disabled = calCurrentPage === 1;
-      document.getElementById("btnCalNextPage").disabled = calCurrentPage === totalCalPages;
+      document.getElementById("btnCalNextPage").disabled = calCalNextPage === totalCalPages;
     }
 
     function changeCalPage(direction) {
@@ -1208,7 +1299,6 @@
       renderCalendarMatrix();
     }
 
-    /* EXPORT EXCEL FOR SELECTED 8 WEEKS */
     function exportCalendarToExcel() {
       const selectedGroup = document.getElementById("calGroupFilter") ? document.getElementById("calGroupFilter").value : "ALL";
       const displayAssets = fleetDatabase.filter(a => selectedGroup === "ALL" || a.equipment_id.toUpperCase().startsWith(selectedGroup));
@@ -1280,6 +1370,8 @@
     }
 
     function openPmsModal(equipmentId) {
+      if (currentUserRole === 'guest') return;
+
       currentSelectedUnit = equipmentId;
       const asset = fleetDatabase.find(a => a.equipment_id === equipmentId);
       if (!asset) return;
@@ -1313,9 +1405,8 @@
       document.getElementById("pmsModal").style.display = "none";
     }
 
-    /* SAVE PMS RECORD (STRICT SCHEMA SEPARATION) */
     async function savePmsRecord() {
-      if (!currentSelectedUnit) return;
+      if (currentUserRole === 'guest' || !currentSelectedUnit) return;
 
       const asset = fleetDatabase.find(a => a.equipment_id === currentSelectedUnit);
       if (!asset) return;
@@ -1327,7 +1418,6 @@
 
       if (supabase) {
         try {
-          // 1. Insert history entry into 'pms_records' (service_date, service_reading, pms_type)
           const { error: pmsInsertError } = await supabase
             .from('pms_records')
             .insert([
@@ -1341,7 +1431,6 @@
 
           if (pmsInsertError) throw pmsInsertError;
 
-          // 2. Update ONLY operational stats in 'equipment' (current_reading, avg_daily_usage)
           const { error: eqUpdateError } = await supabase
             .from('equipment')
             .update({
@@ -1358,7 +1447,6 @@
         }
       }
 
-      // Update local in-memory object and re-render dashboard
       asset.last_service_date = updatedDate;
       asset.last_service_reading = updatedReading;
       asset.current_reading = updatedReading;
@@ -1369,7 +1457,10 @@
       closeModal();
     }
 
-    window.addEventListener('DOMContentLoaded', fetchFleetFromDB);
+    window.addEventListener('DOMContentLoaded', () => {
+      updateUserUIState();
+      fetchFleetFromDB();
+    });
   </script>
 </body>
 </html>

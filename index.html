@@ -542,7 +542,7 @@
     if (window.supabase) {
       window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     }
-    const supabase = window.supabaseClient;
+  supabase = window.supabaseClient;
 
     let fleetDatabase = [];
     let currentFilteredData = [];

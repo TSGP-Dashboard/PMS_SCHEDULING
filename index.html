@@ -324,7 +324,7 @@
     <div>
       <div class="brand-header">
         <i class="fa-solid fa-truck-monster"></i>
-        <h1>OAEC PMS ENGINE</h1>
+        <h1>OAEC PMS Engine</h1>
       </div>
 
       <ul class="nav-list">
@@ -683,7 +683,7 @@
       return ANCHOR_WEEK_NUM + diffWeeks;
     }
 
-    // 2. FETCH DATA FROM SUPABASE (FETCHING EQUIPMENT & PMS_RECORDS)
+    // 2. FETCH DATA FROM SUPABASE
     async function fetchFleetFromDB() {
       const tbody = document.getElementById("assetTableBody");
       const syncBtn = document.getElementById("btnSync");
@@ -776,10 +776,10 @@
             reading_date: latestDateStr || 'Initial',
             avg_daily_usage: parseFloat(item.avg_daily_usage) || 6.5,
             equipment_status: item.equipment_status || 'OPERATIONAL',
-            // Pulled from pms_records history table
+            // Service details from pms_records history table
             last_service_date: lastPms.service_date || 'N/A',
             last_service_reading: parseFloat(lastPms.service_reading) || 0,
-            next_pms_type: item.next_pms_type || 'PM 500'
+            next_pms_type: lastPms.pms_type || (item.meter_type === 'KM' ? '10,000 KM' : 'PM 500')
           };
         });
 
@@ -1313,7 +1313,7 @@
       document.getElementById("pmsModal").style.display = "none";
     }
 
-    /* SAVE PMS RECORD (SPLIT WRITE LOGIC) */
+    /* SAVE PMS RECORD (STRICT SCHEMA SEPARATION) */
     async function savePmsRecord() {
       if (!currentSelectedUnit) return;
 
@@ -1327,7 +1327,7 @@
 
       if (supabase) {
         try {
-          // 1. Insert history entry into 'pms_records' table
+          // 1. Insert history entry into 'pms_records' (service_date, service_reading, pms_type)
           const { error: pmsInsertError } = await supabase
             .from('pms_records')
             .insert([
@@ -1341,12 +1341,11 @@
 
           if (pmsInsertError) throw pmsInsertError;
 
-          // 2. Update operational stats in 'equipment' table
+          // 2. Update ONLY operational stats in 'equipment' (current_reading, avg_daily_usage)
           const { error: eqUpdateError } = await supabase
             .from('equipment')
             .update({
               current_reading: updatedReading,
-              next_pms_type: updatedNextPms,
               avg_daily_usage: updatedDailyRate
             })
             .eq('equipment_id', currentSelectedUnit);
@@ -1359,7 +1358,7 @@
         }
       }
 
-      // Update local state
+      // Update local in-memory object and re-render dashboard
       asset.last_service_date = updatedDate;
       asset.last_service_reading = updatedReading;
       asset.current_reading = updatedReading;

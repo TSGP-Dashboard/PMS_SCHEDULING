@@ -337,7 +337,7 @@
     <div>
       <div class="brand-header">
         <i class="fa-solid fa-truck-monster"></i>
-        <h1>OAEC PMS ENGINE</h1>
+        <h1>PMS Engine</h1>
       </div>
 
       <ul class="nav-list">
@@ -719,12 +719,12 @@
       <div class="modal-body">
         <div class="form-group">
           <label>LOCATION / SITE</label>
-          <input type="text" id="editFleetLocation" class="form-control" style="width: 100%;" placeholder="e.g. Davao Quarry Site 1">
+          <input type="text" id="editFleetLocation" class="form-control" style="width: 100%;" placeholder="e.g. LOS AMIGOS">
         </div>
 
         <div class="form-group">
           <label>REGION</label>
-          <input type="text" id="editFleetRegion" class="form-control" style="width: 100%;" placeholder="e.g. Region XI - Mindanao">
+          <input type="text" id="editFleetRegion" class="form-control" style="width: 100%;" placeholder="e.g. DAVAO">
         </div>
 
         <div class="form-group">
@@ -756,17 +756,17 @@
       <div class="modal-body">
         <div class="form-group">
           <label>EQUIPMENT ID (Unit No.)</label>
-          <input type="text" id="addEqId" class="form-control" style="width: 100%;" placeholder="e.g. DT-105 or EX-201">
+          <input type="text" id="addEqId" class="form-control" style="width: 100%;" placeholder="e.g. BD-25">
         </div>
 
         <div class="form-group">
           <label>BRAND</label>
-          <input type="text" id="addEqBrand" class="form-control" style="width: 100%;" placeholder="e.g. Caterpillar, Komatsu">
+          <input type="text" id="addEqBrand" class="form-control" style="width: 100%;" placeholder="e.g. KOMATSU">
         </div>
 
         <div class="form-group">
           <label>MODEL</label>
-          <input type="text" id="addEqModel" class="form-control" style="width: 100%;" placeholder="e.g. PC200-8, CAT 320">
+          <input type="text" id="addEqModel" class="form-control" style="width: 100%;" placeholder="e.g. D85EX">
         </div>
 
         <div class="form-group">
@@ -789,12 +789,12 @@
 
         <div class="form-group">
           <label>INITIAL LOCATION</label>
-          <input type="text" id="addEqLocation" class="form-control" style="width: 100%;" placeholder="Site Name">
+          <input type="text" id="addEqLocation" class="form-control" style="width: 100%;" placeholder="e.g. LOS AMIGOS">
         </div>
 
         <div class="form-group">
           <label>INITIAL REGION</label>
-          <input type="text" id="addEqRegion" class="form-control" style="width: 100%;" placeholder="Region Name">
+          <input type="text" id="addEqRegion" class="form-control" style="width: 100%;" placeholder="e.g. DAVAO">
         </div>
 
         <div class="form-group">
@@ -867,7 +867,6 @@
         if (lblUser) lblUser.textContent = currentUserName;
       }
 
-      // Fleet module 'Add Equipment' button is only enabled for Admin
       const addEqBtn = document.getElementById("btnAddEquipmentBtn");
       if (addEqBtn) {
         addEqBtn.disabled = (currentUserRole !== "admin");
@@ -875,7 +874,6 @@
         addEqBtn.style.cursor = (currentUserRole !== "admin") ? "not-allowed" : "pointer";
       }
 
-      // Refresh currently open views with updated controls
       renderTable();
       renderLogMatrix();
       renderFleetTable();
@@ -935,7 +933,7 @@
     if (window.supabase) {
       window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     }
-     supabase = window.supabaseClient;
+    supabase = window.supabaseClient;
 
     let fleetDatabase = [];
     let currentFilteredData = [];
@@ -997,6 +995,7 @@
       }
 
       try {
+        // Fetch equipment table
         const { data: equipmentData, error: eqError } = await supabase
           .from('equipment')
           .select('*')
@@ -1004,12 +1003,12 @@
 
         if (eqError) throw eqError;
 
-        // Fetch location data from equipment_locations db table
+        // Fetch equipment_locations table
         const { data: locationData, error: locError } = await supabase
           .from('equipment_locations')
           .select('*');
 
-        if (locError) console.warn("Notice: Could not load equipment_locations table yet.", locError.message);
+        if (locError) console.warn("Notice: Could not load equipment_locations table.", locError.message);
 
         const locationMap = {};
         if (locationData) {
@@ -1018,11 +1017,12 @@
           });
         }
 
+        // Fetch daily logs
         const { data: logData, error: logError } = await supabase
           .from('daily_logs')
           .select('*');
 
-        if (logError) console.warn("Notice: Could not load daily_logs table yet.", logError.message);
+        if (logError) console.warn("Notice: Could not load daily_logs table.", logError.message);
 
         dailyLogMap = {};
         if (logData) {
@@ -1032,12 +1032,13 @@
           });
         }
 
+        // Fetch PMS records
         const { data: pmsRecords, error: pmsError } = await supabase
           .from('pms_records')
           .select('*')
           .order('service_date', { ascending: false });
 
-        if (pmsError) console.warn("Notice: Could not load pms_records table yet.", pmsError.message);
+        if (pmsError) console.warn("Notice: Could not load pms_records table.", pmsError.message);
 
         const latestPmsMap = {};
         if (pmsRecords) {
@@ -1048,6 +1049,7 @@
           });
         }
 
+        // Map combined dataset
         fleetDatabase = (equipmentData || []).map(item => {
           const eqId = item.equipment_id;
 
@@ -1081,8 +1083,11 @@
             reading_date: latestDateStr || 'Initial',
             avg_daily_usage: parseFloat(item.avg_daily_usage) || 6.5,
             equipment_status: item.equipment_status || 'OPERATIONAL',
-            location: locInfo.location || item.location || 'Unassigned',
+            
+            // CAPTURE FROM DB: current_location mapped to location
+            location: locInfo.current_location || item.current_location || item.location || 'Unassigned',
             region: locInfo.region || item.region || 'Unassigned',
+            
             last_service_date: lastPms.service_date || 'N/A',
             last_service_reading: parseFloat(lastPms.service_reading) || 0,
             next_pms_type: lastPms.pms_type || (item.meter_type === 'KM' ? '10,000 KM' : 'PM 500')
@@ -1238,7 +1243,6 @@
       const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
       const pageData = currentFilteredData.slice(startIndex, endIndex);
 
-      // Disable 'Update Reading' sync button if Guest
       const syncBtn = document.getElementById("btnSync");
       if (syncBtn) syncBtn.disabled = (currentUserRole === 'guest');
 
@@ -1695,7 +1699,7 @@
 
       if (supabase) {
         try {
-          // Update equipment status in 'equipment' table
+          // Update equipment status in 'equipment'
           const { error: eqErr } = await supabase
             .from('equipment')
             .update({ equipment_status: newStatus })
@@ -1703,14 +1707,16 @@
 
           if (eqErr) throw eqErr;
 
-          // Upsert location and region in 'equipment_locations' table
+          // Update location and region in 'equipment_locations' using current_location column name
+          const locationId = `${currentSelectedFleetUnit}${newRegion.replace(/\s+/g, '')}`;
+
           const { error: locErr } = await supabase
             .from('equipment_locations')
             .upsert({
+              location_id: locationId,
               equipment_id: currentSelectedFleetUnit,
-              location: newLoc,
-              region: newRegion,
-              updated_at: new Date()
+              current_location: newLoc,
+              region: newRegion
             }, { onConflict: 'equipment_id' });
 
           if (locErr) throw locErr;
@@ -1721,13 +1727,12 @@
         }
       }
 
-      // Local State Update
       item.location = newLoc || 'Unassigned';
       item.region = newRegion || 'Unassigned';
       item.equipment_status = newStatus;
 
       renderFleetTable();
-      renderTable(); // Also refresh PMS table status
+      renderTable(); 
       closeModal('editFleetModal');
     }
 
@@ -1781,13 +1786,15 @@
           if (eqErr) throw eqErr;
 
           // Insert location into equipment_locations table
+          const locationId = `${eqId}${region.replace(/\s+/g, '')}`;
+
           const { error: locErr } = await supabase
             .from('equipment_locations')
             .upsert({
+              location_id: locationId,
               equipment_id: eqId,
-              location: loc,
-              region: region,
-              updated_at: new Date()
+              current_location: loc,
+              region: region
             }, { onConflict: 'equipment_id' });
 
           if (locErr) console.warn("Notice: Location save fallback.", locErr.message);
@@ -1798,7 +1805,6 @@
         }
       }
 
-      // Add to local database state
       fleetDatabase.push({
         equipment_id: eqId,
         brand,
@@ -1821,7 +1827,6 @@
       filterData();
       closeModal('addEquipmentModal');
 
-      // Clear Form Fields
       document.getElementById("addEqId").value = "";
       document.getElementById("addEqBrand").value = "";
       document.getElementById("addEqModel").value = "";

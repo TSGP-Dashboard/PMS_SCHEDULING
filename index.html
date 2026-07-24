@@ -1219,7 +1219,7 @@
     // TIMEZONE-SAFE DB DATE PARSER (YYYY-MM-DD -> Formatted String)
     function formatDbDate(dateStr) {
       if (!dateStr) return null;
-      const cleanDate = dateStr.split('T')[0];
+      const cleanDate = String(dateStr).split('T')[0];
       const parts = cleanDate.split('-').map(Number);
       if (parts.length !== 3) return null;
 
@@ -1230,7 +1230,7 @@
       };
     }
 
-    // WORKING DAY CALCULATOR FALLBACK (If DB column is null)
+    // WORKING DAY CALCULATOR FALLBACK (Only used if DB column target_pms_date is null)
     function addWorkingDays(startDate, days) {
       let currentDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
       let addedDays = 0;
@@ -1267,17 +1267,20 @@
       if (daysLeft < 0 || unitsLeft < 0) pmsStatus = "OVERDUE";
       else if (daysLeft <= 9) pmsStatus = "SCHEDULE ME";
 
-      // Target Date resolution hierarchy: DB Column -> JS Fallback
+      // FIXED: TARGET DATE RESOLUTION (STRICT SUPABASE DIRECT CAPTURE FIRST)
       let targetDateFormatted = "N/A";
       let targetRawDate = new Date();
 
-      if (asset.db_target_pms_date) {
-        const parsed = formatDbDate(asset.db_target_pms_date);
+      let rawTargetDate = asset.target_pms_date || asset.db_target_pms_date;
+
+      if (rawTargetDate) {
+        const parsed = formatDbDate(rawTargetDate);
         if (parsed) {
           targetDateFormatted = parsed.formatted;
           targetRawDate = parsed.rawDate;
         }
-      } else {
+      } else if (daysLeft !== null && daysLeft !== undefined) {
+        // Fallback JS working-day calculation only if DB target_pms_date does not exist
         const today = new Date();
         const normalizedToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
         const targetObj = addWorkingDays(normalizedToday, daysLeft);

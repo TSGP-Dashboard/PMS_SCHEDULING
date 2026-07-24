@@ -1155,9 +1155,15 @@
             equipment_status: item.equipment_status || 'OPERATIONAL',
             location: locInfo.current_location || item.current_location || item.location || 'Unassigned',
             region: locInfo.region || item.region || 'Unassigned',
-            last_service_date: lastPms.service_date || 'N/A',
-            last_service_reading: parseFloat(lastPms.service_reading) || 0,
-            next_pms_type: lastPms.pms_type || (item.meter_type === 'KM' ? '10,000 KM' : 'PM 500')
+            last_service_date: lastPms.service_date || item.last_service_date || 'N/A',
+            last_service_reading: parseFloat(lastPms.service_reading) || parseFloat(item.last_service_reading) || 0,
+            next_pms_type: lastPms.pms_type || (item.meter_type === 'KM' ? '10,000 KM' : 'PM 500'),
+            
+            // DIRECTLY CAPTURE PRE-COMPUTED COLUMNS FROM DATABASE
+            db_target_pms_date: item.target_pms_date || null,
+            db_days_left: item.days_left !== undefined && item.days_left !== null ? parseFloat(item.days_left) : null,
+            db_units_left: item.units_left !== undefined && item.units_left !== null ? parseFloat(item.units_left) : null,
+            db_projected_target: item.projected_target !== undefined && item.projected_target !== null ? parseFloat(item.projected_target) : null
           };
         });
 
@@ -1210,15 +1216,35 @@
       });
     }
 
+    // TIMEZONE-SAFE DB DATE PARSER (YYYY-MM-DD -> Formatted String)
+    function formatDbDate(dateStr) {
+      if (!dateStr) return null;
+      const cleanDate = dateStr.split('T')[0];
+      const parts = cleanDate.split('-').map(Number);
+      if (parts.length !== 3) return null;
+
+      const dateObj = new Date(parts[0], parts[1] - 1, parts[2]);
+      return {
+        formatted: dateObj.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+        rawDate: dateObj
+      };
+    }
+
+    // WORKING DAY CALCULATOR FALLBACK (If DB column is null)
     function addWorkingDays(startDate, days) {
-      let currentDate = new Date(startDate);
+      let currentDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
       let addedDays = 0;
-      let count = Math.ceil(days);
-      if (count <= 0) return { formatted: "Immediate", rawDate: new Date(startDate) };
+      let count = Math.round(days);
+      if (count <= 0) {
+        return { 
+          formatted: currentDate.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }), 
+          rawDate: new Date(currentDate) 
+        };
+      }
 
       while (addedDays < count) {
         currentDate.setDate(currentDate.getDate() + 1);
-        if (currentDate.getDay() !== 0) addedDays++;
+        if (currentDate.getDay() !== 0) addedDays++; // Skip Sundays
       }
       return { 
         formatted: currentDate.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
@@ -1232,15 +1258,33 @@
       const current = asset.current_reading || 0;
       const daily = asset.avg_daily_usage || 0;
 
-      const projectedTarget = lastService + interval;
-      const unitsLeft = projectedTarget - current;
-      const daysLeft = daily > 0 ? Math.round(unitsLeft / daily) : (unitsLeft <= 0 ? -1 : 999);
+      // Prefer pre-computed Database columns if available
+      const projectedTarget = asset.db_projected_target ?? (lastService + interval);
+      const unitsLeft = asset.db_units_left ?? (projectedTarget - current);
+      const daysLeft = asset.db_days_left ?? (daily > 0 ? Math.round(unitsLeft / daily) : (unitsLeft <= 0 ? -1 : 999));
       
       let pmsStatus = "NOT YET";
       if (daysLeft < 0 || unitsLeft < 0) pmsStatus = "OVERDUE";
       else if (daysLeft <= 9) pmsStatus = "SCHEDULE ME";
 
-      const targetDateObj = addWorkingDays(new Date(), daysLeft);
+      // Target Date resolution hierarchy: DB Column -> JS Fallback
+      let targetDateFormatted = "N/A";
+      let targetRawDate = new Date();
+
+      if (asset.db_target_pms_date) {
+        const parsed = formatDbDate(asset.db_target_pms_date);
+        if (parsed) {
+          targetDateFormatted = parsed.formatted;
+          targetRawDate = parsed.rawDate;
+        }
+      } else {
+        const today = new Date();
+        const normalizedToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const targetObj = addWorkingDays(normalizedToday, daysLeft);
+        targetDateFormatted = targetObj.formatted;
+        targetRawDate = targetObj.rawDate;
+      }
+
       const unitLabel = asset.meter_type === "SMR" ? "hrs" : "km";
 
       return { 
@@ -1248,8 +1292,8 @@
         projectedTarget, 
         unitsLeft, 
         daysLeft, 
-        targetDate: targetDateObj.formatted, 
-        targetRawDate: targetDateObj.rawDate,
+        targetDate: targetDateFormatted, 
+        targetRawDate: targetRawDate,
         pmsStatus, 
         unitLabel 
       };
@@ -1905,7 +1949,11 @@
         region: region,
         last_service_date: 'N/A',
         last_service_reading: 0,
-        next_pms_type: meterType === 'KM' ? '10,000 KM' : 'PM 500'
+        next_pms_type: meterType === 'KM' ? '10,000 KM' : 'PM 500',
+        db_target_pms_date: null,
+        db_days_left: null,
+        db_units_left: null,
+        db_projected_target: null
       });
 
       populateGroupDropdowns();
@@ -2038,7 +2086,8 @@
       asset.next_pms_type = updatedNextPms;
       asset.avg_daily_usage = updatedDailyRate;
 
-      renderTable();
+      // Re-fetch from DB to update trigger-calculated target_pms_date
+      fetchFleetFromDB();
       closeModal('pmsModal');
     }
 

@@ -1010,7 +1010,7 @@
     if (window.supabase) {
       window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     }
-    supabase = window.supabaseClient;
+    const supabase = window.supabaseClient;
 
     let fleetDatabase = [];
     let currentFilteredData = [];
@@ -1161,7 +1161,6 @@
             avg_daily_usage: parseFloat(item.avg_daily_usage) || 6.5,
             equipment_status: item.equipment_status || 'OPERATIONAL',
             
-            // CAPTURE FROM DB: current_location mapped to location
             location: locInfo.current_location || item.current_location || item.location || 'Unassigned',
             region: locInfo.region || item.region || 'Unassigned',
             
@@ -1789,7 +1788,6 @@
 
       if (supabase) {
         try {
-          // 1. Update equipment status in 'equipment' table
           const { error: eqErr } = await supabase
             .from('equipment')
             .update({ equipment_status: newStatus })
@@ -1797,7 +1795,6 @@
 
           if (eqErr) throw eqErr;
 
-          // 2. Safely update location in 'equipment_locations' without onConflict upsert errors
           const { data: updatedLoc, error: updateErr } = await supabase
             .from('equipment_locations')
             .update({
@@ -1809,7 +1806,6 @@
 
           if (updateErr) throw updateErr;
 
-          // 3. Fallback: If record didn't exist to update, create a new record
           if (!updatedLoc || updatedLoc.length === 0) {
             const locationId = `${currentSelectedFleetUnit}${newRegion.replace(/\s+/g, '')}`;
             const { error: insertErr } = await supabase
@@ -1873,7 +1869,6 @@
 
       if (supabase) {
         try {
-          // Insert into equipment table
           const { error: eqErr } = await supabase
             .from('equipment')
             .insert([{
@@ -1888,7 +1883,6 @@
 
           if (eqErr) throw eqErr;
 
-          // Insert location into equipment_locations table safely
           const locationId = `${eqId}${region.replace(/\s+/g, '')}`;
 
           const { error: locErr } = await supabase

@@ -1789,7 +1789,7 @@
 
       if (supabase) {
         try {
-          // Update equipment status in 'equipment'
+          // 1. Update equipment status in 'equipment' table
           const { error: eqErr } = await supabase
             .from('equipment')
             .update({ equipment_status: newStatus })
@@ -1797,19 +1797,32 @@
 
           if (eqErr) throw eqErr;
 
-          // Update location and region in 'equipment_locations' using current_location column name
-          const locationId = `${currentSelectedFleetUnit}${newRegion.replace(/\s+/g, '')}`;
-
-          const { error: locErr } = await supabase
+          // 2. Safely update location in 'equipment_locations' without onConflict upsert errors
+          const { data: updatedLoc, error: updateErr } = await supabase
             .from('equipment_locations')
-            .upsert({
-              location_id: locationId,
-              equipment_id: currentSelectedFleetUnit,
+            .update({
               current_location: newLoc,
               region: newRegion
-            }, { onConflict: 'equipment_id' });
+            })
+            .eq('equipment_id', currentSelectedFleetUnit)
+            .select();
 
-          if (locErr) throw locErr;
+          if (updateErr) throw updateErr;
+
+          // 3. Fallback: If record didn't exist to update, create a new record
+          if (!updatedLoc || updatedLoc.length === 0) {
+            const locationId = `${currentSelectedFleetUnit}${newRegion.replace(/\s+/g, '')}`;
+            const { error: insertErr } = await supabase
+              .from('equipment_locations')
+              .insert([{
+                location_id: locationId,
+                equipment_id: currentSelectedFleetUnit,
+                current_location: newLoc,
+                region: newRegion
+              }]);
+
+            if (insertErr) throw insertErr;
+          }
 
         } catch (err) {
           alert("Error saving fleet changes: " + err.message);
@@ -1875,19 +1888,19 @@
 
           if (eqErr) throw eqErr;
 
-          // Insert location into equipment_locations table
+          // Insert location into equipment_locations table safely
           const locationId = `${eqId}${region.replace(/\s+/g, '')}`;
 
           const { error: locErr } = await supabase
             .from('equipment_locations')
-            .upsert({
+            .insert([{
               location_id: locationId,
               equipment_id: eqId,
               current_location: loc,
               region: region
-            }, { onConflict: 'equipment_id' });
+            }]);
 
-          if (locErr) console.warn("Notice: Location save fallback.", locErr.message);
+          if (locErr) console.warn("Notice: Location initial save notice.", locErr.message);
 
         } catch (err) {
           alert("Failed to create new equipment: " + err.message);

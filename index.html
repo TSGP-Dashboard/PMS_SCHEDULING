@@ -1159,7 +1159,7 @@
             last_service_reading: parseFloat(lastPms.service_reading) || parseFloat(item.last_service_reading) || 0,
             next_pms_type: lastPms.pms_type || (item.meter_type === 'KM' ? '10,000 KM' : 'PM 500'),
             
-            // DIRECTLY CAPTURE PRE-COMPUTED COLUMNS FROM SUPABASE
+            // CAPTURE DB COLUMNS (IF COMPUTED IN SUPABASE)
             target_pms_date: item.target_pms_date || null,
             days_left: item.days_left !== undefined && item.days_left !== null ? parseFloat(item.days_left) : null,
             units_left: item.units_left !== undefined && item.units_left !== null ? parseFloat(item.units_left) : null,
@@ -1216,7 +1216,6 @@
       });
     }
 
-    // DIRECT SUPABASE DATE FORMATTER (ISO string YYYY-MM-DD -> MMM DD, YYYY)
     function formatDbDate(dateStr) {
       if (!dateStr) return { formatted: "N/A", rawDate: new Date() };
       
@@ -1234,17 +1233,62 @@
       return { formatted, rawDate };
     }
 
-    function computeAsset(asset) {
-      const daysLeft = asset.days_left ?? 0;
-      const unitsLeft = asset.units_left ?? 0;
-      const projectedTarget = asset.projected_target ?? 0;
+    // Working-day date addition helper (skips Sundays)
+    function addWorkingDays(startDate, daysToAdd) {
+      let currentDate = new Date(startDate);
+      let added = 0;
+      const step = daysToAdd >= 0 ? 1 : -1;
+      const totalDays = Math.abs(daysToAdd);
 
+      while (added < totalDays) {
+        currentDate.setDate(currentDate.getDate() + step);
+        if (currentDate.getDay() !== 0) { // Skip Sundays
+          added++;
+        }
+      }
+      return currentDate;
+    }
+
+    function computeAsset(asset) {
+      // 1. Calculate or Fallback Projected Target
+      let projectedTarget = asset.projected_target;
+      if (!projectedTarget || projectedTarget === 0) {
+        projectedTarget = (asset.last_service_reading || 0) + (asset.pms_interval || 500);
+      }
+
+      // 2. Calculate or Fallback Units Left
+      let unitsLeft = asset.units_left;
+      if (unitsLeft === null || unitsLeft === undefined) {
+        unitsLeft = projectedTarget - asset.current_reading;
+      }
+
+      // 3. Calculate or Fallback Days Left
+      let daysLeft = asset.days_left;
+      if (daysLeft === null || daysLeft === undefined) {
+        const dailyRate = asset.avg_daily_usage > 0 ? asset.avg_daily_usage : 6.5;
+        daysLeft = Math.ceil(unitsLeft / dailyRate);
+      }
+
+      // 4. Calculate or Fallback Target Date
+      let targetFormatted = "N/A";
+      let targetRawDate = new Date();
+
+      if (asset.target_pms_date) {
+        const parsed = formatDbDate(asset.target_pms_date);
+        targetFormatted = parsed.formatted;
+        targetRawDate = parsed.rawDate;
+      } else {
+        const baseDate = asset.reading_date && asset.reading_date !== 'Initial' ? new Date(asset.reading_date) : new Date();
+        const calculatedDate = addWorkingDays(baseDate, daysLeft);
+        const parsed = formatDbDate(calculatedDate.toISOString().split('T')[0]);
+        targetFormatted = parsed.formatted;
+        targetRawDate = parsed.rawDate;
+      }
+
+      // 5. Determine PMS Status
       let pmsStatus = "NOT YET";
       if (daysLeft < 0 || unitsLeft < 0) pmsStatus = "OVERDUE";
       else if (daysLeft <= 9) pmsStatus = "SCHEDULE ME";
-
-      // DIRECT READ FROM DB target_pms_date FIELD
-      const parsedDate = formatDbDate(asset.target_pms_date);
 
       const unitLabel = asset.meter_type === "SMR" ? "hrs" : "km";
 
@@ -1253,8 +1297,8 @@
         projectedTarget, 
         unitsLeft, 
         daysLeft, 
-        targetDate: parsedDate.formatted, 
-        targetRawDate: parsedDate.rawDate,
+        targetDate: targetFormatted, 
+        targetRawDate: targetRawDate,
         pmsStatus, 
         unitLabel 
       };
@@ -2047,7 +2091,7 @@
       asset.next_pms_type = updatedNextPms;
       asset.avg_daily_usage = updatedDailyRate;
 
-      // Re-fetch from DB to get the trigger/stored calculated fields directly
+      // Re-fetch from DB to update state
       fetchFleetFromDB();
       closeModal('pmsModal');
     }

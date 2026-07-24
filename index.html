@@ -302,14 +302,12 @@
       pointer-events: none;
     }
 
-    /* Tooltip Hover State */
     .equipment-tooltip-wrapper:hover .tooltip-card {
       visibility: visible;
       opacity: 1;
       transform: translateY(0);
     }
 
-    /* Tooltip Content Elements */
     .tooltip-header {
       font-size: 11px;
       font-weight: 700;
@@ -329,19 +327,9 @@
       margin-bottom: 6px;
     }
 
-    .tooltip-row:last-child {
-      margin-bottom: 0;
-    }
-
-    .tooltip-label {
-      color: #64748b;
-      font-weight: 500;
-    }
-
-    .tooltip-value {
-      color: #0f172a;
-      font-weight: 600;
-    }
+    .tooltip-row:last-child { margin-bottom: 0; }
+    .tooltip-label { color: #64748b; font-weight: 500; }
+    .tooltip-value { color: #0f172a; font-weight: 600; }
 
     /* Log Table Matrix */
     .log-header {
@@ -898,6 +886,16 @@
     let currentUserRole = "guest"; // Options: 'guest', 'planner', 'admin'
     let currentUserName = "Guest";
 
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
     function handleLogin() {
       const userVal = document.getElementById("loginUsername").value.trim().toLowerCase();
       const passVal = document.getElementById("loginPassword").value.trim();
@@ -1063,7 +1061,7 @@
       }
 
       if (!supabase) {
-        if (tbody) tbody.innerHTML = `<tr><td colspan="13" style="text-align: center; color: var(--status-amber-text); padding: 12px;"><strong>Configuration Required:</strong> Enter <code>SUPABASE_URL</code> & <code>SUPABASE_ANON_KEY</code>.</td></tr>`;
+        if (tbody) tbody.innerHTML = `<tr><td colspan="13" style="text-align: center; color: var(--status-amber-text); padding: 12px;"><strong>Configuration Required:</strong> Client JS failed to load.</td></tr>`;
         if (syncBtn) {
           syncBtn.innerHTML = `<i class="fa-solid fa-rotate"></i> Update Reading`;
           syncBtn.disabled = false;
@@ -1072,7 +1070,6 @@
       }
 
       try {
-        // Fetch equipment table
         const { data: equipmentData, error: eqError } = await supabase
           .from('equipment')
           .select('*')
@@ -1080,7 +1077,6 @@
 
         if (eqError) throw eqError;
 
-        // Fetch equipment_locations table
         const { data: locationData, error: locError } = await supabase
           .from('equipment_locations')
           .select('*');
@@ -1094,7 +1090,6 @@
           });
         }
 
-        // Fetch daily logs
         const { data: logData, error: logError } = await supabase
           .from('daily_logs')
           .select('*');
@@ -1109,7 +1104,6 @@
           });
         }
 
-        // Fetch PMS records
         const { data: pmsRecords, error: pmsError } = await supabase
           .from('pms_records')
           .select('*')
@@ -1126,7 +1120,6 @@
           });
         }
 
-        // Map combined dataset
         fleetDatabase = (equipmentData || []).map(item => {
           const eqId = item.equipment_id;
 
@@ -1160,19 +1153,19 @@
             reading_date: latestDateStr || 'Initial',
             avg_daily_usage: parseFloat(item.avg_daily_usage) || 6.5,
             equipment_status: item.equipment_status || 'OPERATIONAL',
-            
-            // CAPTURE FROM DB: current_location mapped to location
             location: locInfo.current_location || item.current_location || item.location || 'Unassigned',
             region: locInfo.region || item.region || 'Unassigned',
-            
             last_service_date: lastPms.service_date || 'N/A',
             last_service_reading: parseFloat(lastPms.service_reading) || 0,
             next_pms_type: lastPms.pms_type || (item.meter_type === 'KM' ? '10,000 KM' : 'PM 500')
           };
         });
 
-        document.getElementById('footerTotalAssets').textContent = `${fleetDatabase.length} Total Managed Assets`;
-        document.getElementById("datePickerStart").value = windowStartDate.toISOString().split('T')[0];
+        const totalAssetEl = document.getElementById('footerTotalAssets');
+        if (totalAssetEl) totalAssetEl.textContent = `${fleetDatabase.length} Total Managed Assets`;
+        
+        const datePickerStart = document.getElementById("datePickerStart");
+        if (datePickerStart) datePickerStart.value = windowStartDate.toISOString().split('T')[0];
 
         populateGroupDropdowns();
         filterData();
@@ -1181,7 +1174,7 @@
       } catch (err) {
         console.error('Error fetching data:', err.message);
         if (tbody) {
-          tbody.innerHTML = `<tr><td colspan="13" style="text-align: center; color: red; padding: 12px;"><strong>Error Loading Data:</strong> ${err.message}</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="13" style="text-align: center; color: red; padding: 12px;"><strong>Error Loading Data:</strong> ${escapeHtml(err.message)}</td></tr>`;
         }
       } finally {
         if (syncBtn) {
@@ -1294,9 +1287,13 @@
         else notYetCount++;
       });
 
-      document.getElementById("kpi-overdue").textContent = overdueCount;
-      document.getElementById("kpi-schedule").textContent = scheduleCount;
-      document.getElementById("kpi-notyet").textContent = notYetCount;
+      const elOverdue = document.getElementById("kpi-overdue");
+      const elSchedule = document.getElementById("kpi-schedule");
+      const elNotYet = document.getElementById("kpi-notyet");
+
+      if (elOverdue) elOverdue.textContent = overdueCount;
+      if (elSchedule) elSchedule.textContent = scheduleCount;
+      if (elNotYet) elNotYet.textContent = notYetCount;
     }
 
     function renderTable() {
@@ -1340,33 +1337,33 @@
         tr.innerHTML = `
           <td>
             <div class="equipment-tooltip-wrapper">
-              <span class="equipment-id">${item.equipment_id}</span>
+              <span class="equipment-id">${escapeHtml(item.equipment_id)}</span>
               <div class="tooltip-card">
                 <div class="tooltip-header">Equipment Details</div>
                 <div class="tooltip-row">
                   <span class="tooltip-label">Brand & Model:</span>
-                  <span class="tooltip-value">${item.brand} ${item.model}</span>
+                  <span class="tooltip-value">${escapeHtml(item.brand)} ${escapeHtml(item.model)}</span>
                 </div>
                 <div class="tooltip-row">
                   <span class="tooltip-label">Status:</span>
-                  <span class="badge ${eqStatusClass}">${item.equipment_status}</span>
+                  <span class="badge ${eqStatusClass}">${escapeHtml(item.equipment_status)}</span>
                 </div>
               </div>
             </div>
           </td>
           <td>${item.pms_interval.toLocaleString()} ${item.unitLabel}</td>
           <td><strong>${item.current_reading.toLocaleString()} ${item.unitLabel}</strong></td>
-          <td><span style="color: var(--text-muted); font-size: 11px;">${item.reading_date}</span></td>
-          <td>${item.last_service_date || 'N/A'}</td>
+          <td><span style="color: var(--text-muted); font-size: 11px;">${escapeHtml(item.reading_date)}</span></td>
+          <td>${escapeHtml(item.last_service_date || 'N/A')}</td>
           <td>${item.last_service_reading.toLocaleString()} ${item.unitLabel}</td>
           <td><strong>${item.projectedTarget.toLocaleString()}</strong></td>
           <td style="color: ${item.unitsLeft < 0 ? 'red' : 'inherit'}">${item.unitsLeft.toLocaleString()} ${item.unitLabel}</td>
           <td>${item.avg_daily_usage} ${item.unitLabel}/day</td>
           <td><strong>${item.daysLeft}</strong></td>
-          <td>${item.targetDate}</td>
-          <td><span class="badge ${badgeClass}">${item.pmsStatus}</span></td>
+          <td>${escapeHtml(item.targetDate)}</td>
+          <td><span class="badge ${badgeClass}">${escapeHtml(item.pmsStatus)}</span></td>
           <td>
-            <button class="btn btn-outline btn-sm" ${actionBtnDisabled} onclick="openPmsModal('${item.equipment_id}')">
+            <button class="btn btn-outline btn-sm" ${actionBtnDisabled} onclick="openPmsModal('${escapeHtml(item.equipment_id)}')">
               <i class="fa-solid fa-wrench"></i> Update
             </button>
           </td>
@@ -1419,7 +1416,7 @@
       displayAssets.forEach(asset => {
         const tr = document.createElement("tr");
 
-        let rowHtml = `<td><strong>${asset.equipment_id}</strong></td>`;
+        let rowHtml = `<td><strong>${escapeHtml(asset.equipment_id)}</strong></td>`;
 
         dateColumns.forEach(dateStr => {
           const logKey = `${asset.equipment_id}_${dateStr}`;
@@ -1432,7 +1429,7 @@
                      value="${currentVal}" 
                      placeholder="-" 
                      ${inputsDisabled}
-                     onchange="saveDailyLog('${asset.equipment_id}', '${dateStr}', this.value)">
+                     onchange="saveDailyLog('${escapeHtml(asset.equipment_id)}', '${dateStr}', this.value)">
             </td>
           `;
         });
@@ -1481,6 +1478,8 @@
               log_date: logDate, 
               reading: numericVal 
             }, { onConflict: 'equipment_id, log_date' });
+          } else {
+            await supabase.from('daily_logs').delete().match({ equipment_id: equipmentId, log_date: logDate });
           }
 
           if (asset && latestReading !== null) {
@@ -1495,7 +1494,8 @@
 
     function shiftDateWindow(days) {
       windowStartDate.setDate(windowStartDate.getDate() + days);
-      document.getElementById("datePickerStart").value = windowStartDate.toISOString().split('T')[0];
+      const picker = document.getElementById("datePickerStart");
+      if (picker) picker.value = windowStartDate.toISOString().split('T')[0];
       renderLogMatrix();
     }
 
@@ -1568,7 +1568,7 @@
         const item = computeAsset(rawAsset);
         const tr = document.createElement("tr");
 
-        let rowHtml = `<td><strong>${item.equipment_id}</strong></td>`;
+        let rowHtml = `<td><strong>${escapeHtml(item.equipment_id)}</strong></td>`;
 
         weekColumns.forEach(week => {
           const isDueThisWeek = item.targetRawDate >= week.start && item.targetRawDate <= week.end;
@@ -1580,8 +1580,8 @@
 
             rowHtml += `
               <td class="cal-cell">
-                <span class="cal-badge ${badgeClass}" title="${item.equipment_id}: Target Date ${item.targetDate} (${item.pmsStatus})">
-                  ${item.next_pms_type || 'PMS'}
+                <span class="cal-badge ${badgeClass}" title="${escapeHtml(item.equipment_id)}: Target Date ${escapeHtml(item.targetDate)} (${escapeHtml(item.pmsStatus)})">
+                  ${escapeHtml(item.next_pms_type || 'PMS')}
                 </span>
               </td>
             `;
@@ -1736,13 +1736,13 @@
 
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td><strong>${item.equipment_id}</strong></td>
-          <td>${item.brand} ${item.model}</td>
-          <td><i class="fa-solid fa-location-dot" style="color: var(--primary-blue); margin-right: 4px;"></i> ${item.location}</td>
-          <td>${item.region}</td>
-          <td><span class="badge ${statusBadgeClass}">${item.equipment_status}</span></td>
+          <td><strong>${escapeHtml(item.equipment_id)}</strong></td>
+          <td>${escapeHtml(item.brand)} ${escapeHtml(item.model)}</td>
+          <td><i class="fa-solid fa-location-dot" style="color: var(--primary-blue); margin-right: 4px;"></i> ${escapeHtml(item.location)}</td>
+          <td>${escapeHtml(item.region)}</td>
+          <td><span class="badge ${statusBadgeClass}">${escapeHtml(item.equipment_status)}</span></td>
           <td>
-            <button class="btn btn-outline btn-sm" ${canEdit ? '' : 'disabled'} onclick="openEditFleetModal('${item.equipment_id}')">
+            <button class="btn btn-outline btn-sm" ${canEdit ? '' : 'disabled'} onclick="openEditFleetModal('${escapeHtml(item.equipment_id)}')">
               <i class="fa-solid fa-pen-to-square"></i> Edit
             </button>
           </td>
@@ -1789,7 +1789,6 @@
 
       if (supabase) {
         try {
-          // 1. Update equipment status in 'equipment' table
           const { error: eqErr } = await supabase
             .from('equipment')
             .update({ equipment_status: newStatus })
@@ -1797,32 +1796,18 @@
 
           if (eqErr) throw eqErr;
 
-          // 2. Safely update location in 'equipment_locations' without onConflict upsert errors
-          const { data: updatedLoc, error: updateErr } = await supabase
+          const locationId = `${currentSelectedFleetUnit}_LOC`;
+
+          const { error: locErr } = await supabase
             .from('equipment_locations')
-            .update({
+            .upsert({
+              location_id: locationId,
+              equipment_id: currentSelectedFleetUnit,
               current_location: newLoc,
               region: newRegion
-            })
-            .eq('equipment_id', currentSelectedFleetUnit)
-            .select();
+            }, { onConflict: 'location_id' });
 
-          if (updateErr) throw updateErr;
-
-          // 3. Fallback: If record didn't exist to update, create a new record
-          if (!updatedLoc || updatedLoc.length === 0) {
-            const locationId = `${currentSelectedFleetUnit}${newRegion.replace(/\s+/g, '')}`;
-            const { error: insertErr } = await supabase
-              .from('equipment_locations')
-              .insert([{
-                location_id: locationId,
-                equipment_id: currentSelectedFleetUnit,
-                current_location: newLoc,
-                region: newRegion
-              }]);
-
-            if (insertErr) throw insertErr;
-          }
+          if (locErr) throw locErr;
 
         } catch (err) {
           alert("Error saving fleet changes: " + err.message);
@@ -1873,7 +1858,6 @@
 
       if (supabase) {
         try {
-          // Insert into equipment table
           const { error: eqErr } = await supabase
             .from('equipment')
             .insert([{
@@ -1888,17 +1872,16 @@
 
           if (eqErr) throw eqErr;
 
-          // Insert location into equipment_locations table safely
-          const locationId = `${eqId}${region.replace(/\s+/g, '')}`;
+          const locationId = `${eqId}_LOC`;
 
           const { error: locErr } = await supabase
             .from('equipment_locations')
-            .insert([{
+            .upsert([{
               location_id: locationId,
               equipment_id: eqId,
               current_location: loc,
               region: region
-            }]);
+            }], { onConflict: 'location_id' });
 
           if (locErr) console.warn("Notice: Location initial save notice.", locErr.message);
 
